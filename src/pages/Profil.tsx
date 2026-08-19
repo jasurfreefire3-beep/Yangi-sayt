@@ -5,7 +5,8 @@ import { User, Anime, toSlug } from '../types';
 import { 
   Shield, Clock, Heart, MessageSquare, Edit3, Save, Camera, 
   Loader2, Globe, Send, Instagram, Youtube, Tv, Share2, 
-  Check, X, Sparkles, Film, Star, ArrowRight, Lock, Eye, Trash2
+  Check, X, Sparkles, Film, Star, ArrowRight, Lock, Eye, Trash2,
+  RotateCcw, LogIn
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -90,30 +91,42 @@ export default function Profil() {
   };
 
   // Load user profile
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
-      setError('');
+  const fetchProfile = async () => {
+    setLoading(true);
+    setError('');
+    const idToFetch = targetId || currentUser?.id;
+    if (!idToFetch) {
+      setLoading(false);
+      return;
+    }
+
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    let retries = 3;
+    let delay = 600;
+
+    while (retries > 0) {
       try {
-        const idToFetch = targetId || currentUser?.id;
-        if (!idToFetch) {
-          setError("Foydalanuvchi topilmadi");
-          setLoading(false);
-          return;
-        }
-
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-        const headers: Record<string, string> = {};
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-
         const res = await fetch(`${API_BASE}/api/user/${idToFetch}`, { headers });
-        const data = await res.json();
-
+        const contentType = res.headers.get("content-type");
+        
         if (!res.ok) {
-          throw new Error(data.error || "Profilni yuklashda xatolik");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await res.json();
+            throw new Error(errData.error || "Foydalanuvchi topilmadi");
+          }
+          throw new Error(`Server xatosi (${res.status})`);
         }
+
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Noto'g'ri server javobi");
+        }
+
+        const data = await res.json();
 
         const isUserOwner = Boolean(data.isOwner || (currentUser && String(currentUser.id) === String(data.user.id)));
         setIsOwner(isUserOwner);
@@ -172,14 +185,28 @@ export default function Profil() {
         setEditDiscord(data.user.discord || '');
         setEditFacebook(data.user.facebook || '');
         setEditVk(data.user.vk || '');
-      } catch (err: any) {
-        console.error(err);
-        setError(err.message || "Xatolik yuz berdi");
-      } finally {
         setLoading(false);
+        return; // Success
+      } catch (err: any) {
+        retries--;
+        console.warn(`Profil yuklashda urinish muvaffaqiyatsiz bo'ldi. Qolgan urinishlar: ${retries}`, err);
+        if (retries === 0) {
+          const rawMsg = err.message || '';
+          if (rawMsg.includes('Failed to fetch') || rawMsg.includes('NetworkError')) {
+            setError("Server bilan aloqa o'rnatib bo'lmadi. Iltimos, qayta urinib ko'ring.");
+          } else {
+            setError(rawMsg || "Profilni yuklashda xatolik yuz berdi");
+          }
+          setLoading(false);
+        } else {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 1.5;
+        }
       }
-    };
+    }
+  };
 
+  useEffect(() => {
     fetchProfile();
   }, [targetId, currentUser, token]);
 
@@ -364,16 +391,63 @@ export default function Profil() {
     );
   }
 
+  // If user is not logged in and didn't specify another user's id
+  if (!targetId && !currentUser) {
+    return (
+      <div className="max-w-md mx-auto py-16 px-6 text-center space-y-5 bg-[#111] border border-[#222] rounded-2xl shadow-xl my-8">
+        <div className="w-16 h-16 bg-[#ff006a]/10 border border-[#ff006a]/30 text-[#ff006a] rounded-full flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(255,0,106,0.2)]">
+          <LogIn size={28} />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-white uppercase tracking-wide">Profilga kirish talab qilinadi</h2>
+          <p className="text-white/50 text-xs leading-relaxed">
+            Shaxsiy profilingiz, tomosha tarixingiz va saqlangan animelaringizni ko'rish uchun tizimga kiring.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+          <Link 
+            to="/login" 
+            className="bg-[#ff006a] hover:bg-[#ff006a]/90 text-white px-6 py-2.5 rounded-lg text-xs font-bold uppercase transition-all shadow-[0_0_15px_rgba(255,0,106,0.3)]"
+          >
+            Kirish
+          </Link>
+          <Link 
+            to="/register" 
+            className="bg-[#18181c] hover:bg-[#222] text-white/80 hover:text-white border border-[#333] px-6 py-2.5 rounded-lg text-xs font-bold uppercase transition-all"
+          >
+            Ro'yxatdan o'tish
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (error || !profileUser) {
     return (
-      <div className="max-w-2xl mx-auto py-16 text-center space-y-4">
+      <div className="max-w-md mx-auto py-16 px-6 text-center space-y-5 bg-[#111] border border-[#222] rounded-2xl shadow-xl my-8">
         <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto">
           <Shield size={32} />
         </div>
-        <h2 className="text-xl font-bold text-white uppercase">{error || "Foydalanuvchi topilmadi"}</h2>
-        <Link to="/" className="inline-block bg-[#ff006a] text-white px-6 py-2.5 rounded-sm text-xs font-bold uppercase">
-          Bosh sahifaga qaytish
-        </Link>
+        <div className="space-y-2">
+          <h2 className="text-lg font-bold text-white uppercase">{error || "Foydalanuvchi topilmadi"}</h2>
+          <p className="text-white/40 text-xs">
+            Server bilan bog'lanishda muammo bo'lishi mumkin. Qaytadan urinib ko'ring.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3 justify-center pt-2">
+          <button
+            onClick={() => fetchProfile()}
+            className="inline-flex items-center gap-2 bg-[#ff006a] hover:bg-[#ff006a]/90 text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase transition-all shadow-[0_0_15px_rgba(255,0,106,0.3)]"
+          >
+            <RotateCcw size={14} /> Qayta urinish
+          </button>
+          <Link 
+            to="/" 
+            className="inline-flex items-center gap-2 bg-[#18181c] hover:bg-[#222] text-white/80 hover:text-white border border-[#333] px-5 py-2.5 rounded-lg text-xs font-bold uppercase transition-all"
+          >
+            Bosh sahifaga
+          </Link>
+        </div>
       </div>
     );
   }
