@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Notification, Anime, toSlug } from '../types';
 import { Search, LogOut, User, Bell, Menu, PlusCircle, Heart, Settings, X, Shield, Star, Film } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import logoImg from '../logo.png';
+const logoImg = "https://i.pinimg.com/736x/17/c6/88/17c688c6242fe4c3293be182924e73a3.jpg";
 
 interface NavbarProps {
   onToggleSidebar: () => void;

@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { translateGenre } from '../types';
-import logoImg from '../logo.png';
+const logoImg = "https://i.pinimg.com/736x/17/c6/88/17c688c6242fe4c3293be182924e73a3.jpg";
 
 interface SidebarProps {
   onClose?: () => void;
