@@ -383,6 +383,8 @@ async function testDbConnection() {
       { name: "facebook", type: "VARCHAR(255) DEFAULT NULL" },
       { name: "vk", type: "VARCHAR(255) DEFAULT NULL" },
       { name: "favorites", type: "LONGTEXT DEFAULT NULL" },
+      { name: "watch_time_minutes", type: "INT DEFAULT 0" },
+      { name: "watch_history", type: "LONGTEXT DEFAULT NULL" },
       { name: "last_seen", type: "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" }
     ];
 
@@ -1989,6 +1991,27 @@ app.get("/api/user/:id", async (req, res) => {
       console.warn("Parsing user favorites error:", e);
     }
 
+    // Resolve watch history and watch time
+    let watchHistory: any[] = [];
+    try {
+      if (userData.watch_history) {
+        if (typeof userData.watch_history === 'string') {
+          watchHistory = JSON.parse(userData.watch_history);
+        } else if (Array.isArray(userData.watch_history)) {
+          watchHistory = userData.watch_history;
+        }
+      }
+    } catch (e) {}
+
+    let watchTimeMinutes = Number(userData.watch_time_minutes) || 0;
+    if (watchTimeMinutes === 0 && Array.isArray(watchHistory) && watchHistory.length > 0) {
+      // Calculate based on watched history items
+      watchTimeMinutes = watchHistory.reduce((total: number, item: any) => {
+        const itemMins = Number(item.minutes_watched) || (Number(item.lastEpisode || 1) * 24);
+        return total + itemMins;
+      }, 0);
+    }
+
     const responseUser: any = {
       id: userData.id,
       name: userData.name,
@@ -2004,6 +2027,8 @@ app.get("/api/user/:id", async (req, res) => {
       facebook: userData.facebook || null,
       vk: userData.vk || null,
       favorites: favoritesAnimes,
+      watch_time_minutes: watchTimeMinutes,
+      watch_history: watchHistory,
       comments_count: commentsCount,
       created_at: userData.created_at || null,
       last_seen: userData.last_seen || null,
@@ -2165,6 +2190,69 @@ app.post("/api/user/favorites", authenticateToken, async (req: any, res) => {
     res.json({ success: true, favorites });
   } catch (err) {
     res.status(500).json({ error: "Favorites sync failed" });
+  }
+});
+
+// Update or track watch progress and watch time
+app.post("/api/user/watch-progress", authenticateToken, async (req: any, res) => {
+  try {
+    const userId = req.user.id;
+    const { anime_id, episode_number = 1, minutes_watched = 24, total_minutes } = req.body;
+
+    let currentMinutes = 0;
+    let currentHistory: any[] = [];
+
+    try {
+      const [rows]: any = await dbQuery("SELECT watch_time_minutes, watch_history FROM users WHERE id = ?", [userId]);
+      if (rows && rows[0]) {
+        currentMinutes = Number(rows[0].watch_time_minutes) || 0;
+        if (rows[0].watch_history) {
+          try {
+            currentHistory = typeof rows[0].watch_history === 'string' ? JSON.parse(rows[0].watch_history) : rows[0].watch_history;
+          } catch(e) {}
+        }
+      }
+    } catch(e) {}
+
+    const store = loadLocalStore();
+    const storeUser = store.users?.find((u: any) => String(u.id) === String(userId));
+    if (storeUser) {
+      if (!currentMinutes && storeUser.watch_time_minutes) currentMinutes = Number(storeUser.watch_time_minutes);
+      if ((!currentHistory || currentHistory.length === 0) && storeUser.watch_history) currentHistory = storeUser.watch_history;
+    }
+
+    if (total_minutes !== undefined && Number(total_minutes) >= 0) {
+      currentMinutes = Number(total_minutes);
+    } else if (minutes_watched !== undefined && Number(minutes_watched) > 0) {
+      currentMinutes += Number(minutes_watched);
+    }
+
+    if (anime_id) {
+      currentHistory = (currentHistory || []).filter((h: any) => String(h.animeId) !== String(anime_id));
+      currentHistory.unshift({
+        animeId: anime_id,
+        lastEpisode: episode_number,
+        viewedAt: new Date().toISOString(),
+        minutes_watched: minutes_watched || 24
+      });
+      currentHistory = currentHistory.slice(0, 50);
+    }
+
+    const historyJson = JSON.stringify(currentHistory);
+    try {
+      await dbQuery("UPDATE users SET watch_time_minutes = ?, watch_history = ? WHERE id = ?", [currentMinutes, historyJson, userId]);
+    } catch(e) {}
+
+    if (storeUser) {
+      storeUser.watch_time_minutes = currentMinutes;
+      storeUser.watch_history = currentHistory;
+      saveLocalStore(store);
+    }
+
+    res.json({ success: true, watch_time_minutes: currentMinutes, watch_history: currentHistory });
+  } catch (err: any) {
+    console.error("Watch progress sync error:", err);
+    res.status(500).json({ error: "Watch progress sync failed" });
   }
 });
 
@@ -4106,25 +4194,56 @@ app.delete("/api/admin/donate/:id", authenticateToken, async (req: any, res: any
 });
 
 // Chat Routes
-// GET chat messages (Resilient: MySQL with fallback to local_store)
+// GET chat messages (Ultra-fast response with DB sync)
 app.get("/api/chat/messages", async (req: any, res: any) => {
   try {
-    try {
-      const [rows]: any = await dbQuery(
-        `SELECT m.*, u.avatar_url AS user_avatar 
-         FROM messages m 
-         LEFT JOIN users u ON m.user_id = u.id 
-         ORDER BY m.id DESC LIMIT 50`
-      );
-      if (Array.isArray(rows) && rows.length > 0) {
-        return res.json([...rows].reverse());
-      }
-    } catch (dbErr) {
-      console.warn("GET /api/chat/messages DB query failed, falling back to local_store:", dbErr);
-    }
-
     const store = loadLocalStore();
     const localMsgs = (store.messages || []).slice(-50);
+
+    // If local store has messages, serve instantly (0ms latency)
+    if (localMsgs && localMsgs.length > 0) {
+      res.json(localMsgs);
+
+      // Background sync with database if available
+      (async () => {
+        try {
+          const [rows]: any = await dbQuery(
+            `SELECT m.*, u.avatar_url AS user_avatar 
+             FROM messages m 
+             LEFT JOIN users u ON m.user_id = u.id 
+             ORDER BY m.id DESC LIMIT 50`
+          );
+          if (Array.isArray(rows) && rows.length > 0) {
+            const dbMsgs = [...rows].reverse();
+            store.messages = dbMsgs;
+            saveLocalStore(store);
+          }
+        } catch (e) {}
+      })();
+      return;
+    }
+
+    // If local store is empty, query DB with 500ms timeout
+    try {
+      const [rows]: any = await Promise.race([
+        dbQuery(
+          `SELECT m.*, u.avatar_url AS user_avatar 
+           FROM messages m 
+           LEFT JOIN users u ON m.user_id = u.id 
+           ORDER BY m.id DESC LIMIT 50`
+        ),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("DB Timeout")), 500))
+      ]);
+      if (Array.isArray(rows) && rows.length > 0) {
+        const dbMsgs = [...rows].reverse();
+        store.messages = dbMsgs;
+        saveLocalStore(store);
+        return res.json(dbMsgs);
+      }
+    } catch (dbErr) {
+      console.warn("GET /api/chat/messages DB query failed/timed out, using local_store:", dbErr);
+    }
+
     return res.json(localMsgs);
   } catch (err) {
     console.error("GET /api/chat/messages error:", err);

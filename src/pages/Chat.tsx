@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Message } from '../types';
 import { io, Socket } from 'socket.io-client';
-import { Send, Sparkles, Trash2, CornerUpLeft, X, Mic, Smile } from 'lucide-react';
+import { Send, Sparkles, Trash2, CornerUpLeft, X, Mic, Smile, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import AudioMessage, { parseMessageContent } from '../components/AudioMessage';
@@ -13,8 +13,22 @@ const CHAT_BG_IMAGE = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRbK
 
 export default function Chat() {
   const { user, token } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const cached = localStorage.getItem('cached_chat_messages');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    try {
+      const cached = localStorage.getItem('cached_chat_messages');
+      return !(cached && JSON.parse(cached).length > 0);
+    } catch (e) {
+      return true;
+    }
+  });
   const [input, setInput] = useState('');
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [activeMsgId, setActiveMsgId] = useState<string | number | null>(null);
@@ -34,11 +48,33 @@ export default function Chat() {
 
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 100;
+    setShowScrollBottom(isScrolledUp);
+  };
+
+  const handleScrollToBottom = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    } else {
+      scrollToBottom();
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
 
-    setIsLoading(true);
+    if (messages.length === 0) {
+      setIsLoading(true);
+    }
 
     const fetchInitialMessages = async () => {
       try {
@@ -46,14 +82,18 @@ export default function Chat() {
         const res = await fetch(`${API_BASE}/api/chat/messages`);
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data)) {
+          if (Array.isArray(data) && data.length > 0) {
             setMessages(data);
-            setIsLoading(false);
-            scrollToBottom();
+            try {
+              localStorage.setItem('cached_chat_messages', JSON.stringify(data));
+            } catch (e) {}
           }
         }
       } catch (err) {
         // Socket listener handles it
+      } finally {
+        setIsLoading(false);
+        scrollToBottom();
       }
     };
     fetchInitialMessages();
@@ -63,7 +103,12 @@ export default function Chat() {
     socketRef.current = socket;
 
     socket.on('previousMessages', (prevMsgs: Message[]) => {
-      setMessages(prevMsgs);
+      if (Array.isArray(prevMsgs) && prevMsgs.length > 0) {
+        setMessages(prevMsgs);
+        try {
+          localStorage.setItem('cached_chat_messages', JSON.stringify(prevMsgs));
+        } catch (e) {}
+      }
       setIsLoading(false);
       scrollToBottom();
     });
@@ -71,24 +116,37 @@ export default function Chat() {
     socket.on('newMessage', (newMsg: Message) => {
       setMessages((prev) => {
         if (prev.some(m => String(m.id) === String(newMsg.id))) return prev;
-        return [...prev, newMsg];
+        const updated = [...prev, newMsg];
+        try {
+          localStorage.setItem('cached_chat_messages', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
       });
       setIsLoading(false);
       scrollToBottom();
     });
 
     socket.on('messageDeleted', (deletedId: any) => {
-      setMessages((prev) => prev.filter(msg => String(msg.id) !== String(deletedId)));
+      setMessages((prev) => {
+        const updated = prev.filter(msg => String(msg.id) !== String(deletedId));
+        try {
+          localStorage.setItem('cached_chat_messages', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
     });
 
     socket.on('chatCleared', () => {
       setMessages([]);
+      try {
+        localStorage.removeItem('cached_chat_messages');
+      } catch (e) {}
       setIsLoading(false);
     });
 
     const timeout = setTimeout(() => {
       setIsLoading(false);
-    }, 4000);
+    }, 1500);
 
     return () => {
       clearTimeout(timeout);
@@ -377,6 +435,8 @@ export default function Chat() {
 
           {/* Messages Area with Anime Custom Background Wallpaper */}
           <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
             className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar relative"
             style={{
               backgroundImage: `linear-gradient(to bottom, rgba(9, 9, 11, 0.85), rgba(3, 3, 3, 0.90)), url("${CHAT_BG_IMAGE}")`,
@@ -385,7 +445,7 @@ export default function Chat() {
               backgroundAttachment: 'local'
             }}
           >
-            {isLoading ? (
+            {isLoading && messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 space-y-3">
                 <div className="w-8 h-8 border-2 border-[#ff006a] border-t-transparent rounded-full animate-spin"></div>
                 <span className="text-white/70 text-xs font-semibold animate-pulse tracking-wide">
@@ -610,6 +670,23 @@ export default function Chat() {
                   onClose={() => setShowEmojiPicker(false)}
                 />
               </div>
+            )}
+          </AnimatePresence>
+
+          {/* Scroll To Bottom Button */}
+          <AnimatePresence>
+            {showScrollBottom && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, scale: 0.6, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.6, y: 10 }}
+                onClick={handleScrollToBottom}
+                className="absolute right-4 sm:right-6 bottom-20 z-40 p-2.5 bg-[#121216]/95 hover:bg-[#ff006a] text-[#ff006a] hover:text-white border border-[#ff006a]/40 hover:border-[#ff006a] rounded-full shadow-2xl shadow-black/80 backdrop-blur-md transition-all duration-200 cursor-pointer flex items-center justify-center group"
+                title="Pastga tushish"
+              >
+                <ChevronDown className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
+              </motion.button>
             )}
           </AnimatePresence>
 

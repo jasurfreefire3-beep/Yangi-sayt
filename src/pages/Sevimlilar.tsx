@@ -10,7 +10,7 @@ export default function Sevimlilar() {
   const [loading, setLoading] = useState(true);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'barchasi' | 'animelar' | 'qismlar'>('barchasi');
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   useEffect(() => {
     const fetchFavoritesData = async () => {
@@ -25,7 +25,19 @@ export default function Sevimlilar() {
 
         const savedFavs = localStorage.getItem('anime_favorites');
         if (savedFavs) {
-          setFavoriteIds(JSON.parse(savedFavs));
+          const parsed = JSON.parse(savedFavs);
+          setFavoriteIds(parsed);
+          // Auto sync with backend if logged in
+          if (token && Array.isArray(parsed)) {
+            fetch(`${API_BASE}/api/user/favorites`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ favorites: parsed })
+            }).catch(() => {});
+          }
         }
       } catch (err) {
         console.error("Error loading favorites:", err);
@@ -35,13 +47,25 @@ export default function Sevimlilar() {
     };
 
     fetchFavoritesData();
-  }, [user]);
+  }, [user, token]);
 
   const handleUnfavorite = async (id: string | number) => {
     try {
       const updated = favoriteIds.filter((favId) => String(favId) !== String(id));
       setFavoriteIds(updated);
       localStorage.setItem('anime_favorites', JSON.stringify(updated));
+
+      if (token) {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        fetch(`${API_BASE}/api/user/favorites`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ favorites: updated })
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error(err);
     }

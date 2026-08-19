@@ -15,6 +15,8 @@ export interface User {
   facebook?: string;
   vk?: string;
   favorites?: any[];
+  watch_time_minutes?: number;
+  watch_history?: any[];
   comments_count?: number;
   created_at?: string;
   last_seen?: string;

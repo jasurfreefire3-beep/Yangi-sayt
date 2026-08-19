@@ -5,7 +5,7 @@ import { User, Anime, toSlug } from '../types';
 import { 
   Shield, Clock, Heart, MessageSquare, Edit3, Save, Camera, 
   Loader2, Globe, Send, Instagram, Youtube, Tv, Share2, 
-  Check, X, Sparkles, Film, Star, ArrowRight, Lock, Eye
+  Check, X, Sparkles, Film, Star, ArrowRight, Lock, Eye, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -74,6 +74,21 @@ export default function Profil() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
 
+  // Format watch time accurately into hours and minutes in Uzbek
+  const formatWatchTime = (minutes?: number) => {
+    const mins = Number(minutes) || 0;
+    if (mins <= 0) return "0 daqiqa";
+    const hours = Math.floor(mins / 60);
+    const remainderMins = mins % 60;
+    if (hours > 0 && remainderMins > 0) {
+      return `${hours} soat ${remainderMins} daq`;
+    } else if (hours > 0) {
+      return `${hours} soat`;
+    } else {
+      return `${remainderMins} daqiqa`;
+    }
+  };
+
   // Load user profile
   useEffect(() => {
     const fetchProfile = async () => {
@@ -100,8 +115,50 @@ export default function Profil() {
           throw new Error(data.error || "Profilni yuklashda xatolik");
         }
 
+        const isUserOwner = Boolean(data.isOwner || (currentUser && String(currentUser.id) === String(data.user.id)));
+        setIsOwner(isUserOwner);
+
+        // Auto-sync owner's local favorites and watch history to server if needed
+        if (isUserOwner && token) {
+          const savedFavs = localStorage.getItem('anime_favorites');
+          const savedHist = localStorage.getItem('anime_history');
+
+          if (savedFavs && (!data.user.favorites || data.user.favorites.length === 0)) {
+            try {
+              const favIds = JSON.parse(savedFavs);
+              if (Array.isArray(favIds) && favIds.length > 0) {
+                fetch(`${API_BASE}/api/user/favorites`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({ favorites: favIds })
+                }).catch(() => {});
+              }
+            } catch (e) {}
+          }
+
+          if (savedHist && (!data.user.watch_time_minutes || data.user.watch_time_minutes === 0)) {
+            try {
+              const histItems = JSON.parse(savedHist);
+              if (Array.isArray(histItems) && histItems.length > 0) {
+                const totalMins = histItems.reduce((acc: number, item: any) => acc + (Number(item.lastEpisode || 1) * 24), 0);
+                fetch(`${API_BASE}/api/user/watch-progress`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({ total_minutes: totalMins })
+                }).catch(() => {});
+                data.user.watch_time_minutes = totalMins;
+              }
+            } catch (e) {}
+          }
+        }
+
         setProfileUser(data.user);
-        setIsOwner(Boolean(data.isOwner || (currentUser && String(currentUser.id) === String(data.user.id))));
         
         // Populate edit state values
         setEditName(data.user.name || '');
@@ -332,6 +389,34 @@ export default function Profil() {
   ].filter(s => Boolean(s.value));
 
   const favoritesList: Anime[] = Array.isArray(profileUser.favorites) ? profileUser.favorites : [];
+
+  const handleRemoveFavorite = async (e: React.MouseEvent, animeId: string | number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!token) return;
+
+    const updated = favoritesList.filter(a => String(a.id) !== String(animeId));
+    setProfileUser(prev => prev ? { ...prev, favorites: updated } : null);
+
+    // update localStorage
+    const savedFavs = localStorage.getItem('anime_favorites');
+    if (savedFavs) {
+      try {
+        const favIds = JSON.parse(savedFavs).filter((id: any) => String(id) !== String(animeId));
+        localStorage.setItem('anime_favorites', JSON.stringify(favIds));
+      } catch (e) {}
+    }
+
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    fetch(`${API_BASE}/api/user/favorites`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ favorites: updated.map(a => a.id) })
+    }).catch(() => {});
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-16">
@@ -700,19 +785,22 @@ export default function Profil() {
         <div className="bg-[#111] border border-[#222] p-5 rounded-2xl text-center space-y-1 hover:border-[#ff006a]/30 transition-colors">
           <Clock className="w-6 h-6 text-[#ff006a] mx-auto" />
           <h4 className="text-white/40 text-[10px] uppercase font-bold tracking-wider">Tomosha vaqti</h4>
-          <p className="text-2xl font-black text-white">{Math.max(12, favoritesList.length * 8 + 14)} soat</p>
+          <p className="text-2xl font-black text-white">{formatWatchTime(profileUser.watch_time_minutes)}</p>
+          <span className="text-[10px] text-white/30 font-mono block">Aniq tomosha davomiyligi</span>
         </div>
 
         <div className="bg-[#111] border border-[#222] p-5 rounded-2xl text-center space-y-1 hover:border-[#ff006a]/30 transition-colors">
           <Heart className="w-6 h-6 text-[#ff006a] mx-auto fill-current" />
           <h4 className="text-white/40 text-[10px] uppercase font-bold tracking-wider">Saqlangan animelar</h4>
           <p className="text-2xl font-black text-white">{favoritesList.length} ta</p>
+          <span className="text-[10px] text-white/30 font-mono block">Sevimlilar ro'yxatida</span>
         </div>
 
         <div className="bg-[#111] border border-[#222] p-5 rounded-2xl text-center space-y-1 hover:border-[#ff006a]/30 transition-colors">
           <MessageSquare className="w-6 h-6 text-[#ff006a] mx-auto" />
           <h4 className="text-white/40 text-[10px] uppercase font-bold tracking-wider">Jami Izohlar</h4>
           <p className="text-2xl font-black text-white">{profileUser.comments_count || 0} ta</p>
+          <span className="text-[10px] text-white/30 font-mono block">Qoldirilgan fikrlar</span>
         </div>
       </div>
 
@@ -731,16 +819,24 @@ export default function Profil() {
         </div>
 
         {favoritesList.length === 0 ? (
-          <div className="text-center py-12 text-white/30 space-y-2">
-            <Film className="w-10 h-10 mx-auto text-white/20" />
+          <div className="text-center py-12 text-white/30 space-y-3">
+            <Film className="w-12 h-12 mx-auto text-white/20" />
             <p className="text-xs font-mono">Hozircha birorta ham anime saqlanmagan.</p>
+            {isOwner && (
+              <Link
+                to="/animelar"
+                className="inline-block bg-[#ff006a]/20 hover:bg-[#ff006a] text-[#ff006a] hover:text-white border border-[#ff006a]/30 px-4 py-2 rounded-lg text-xs font-bold transition-all"
+              >
+                Animelarni ko'rish va saqlash
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {favoritesList.map((anime) => (
               <div 
                 key={anime.id} 
-                className="bg-[#161618] border border-[#222] rounded-xl overflow-hidden group hover:border-[#ff006a]/50 transition-all flex flex-col"
+                className="bg-[#161618] border border-[#222] rounded-xl overflow-hidden group hover:border-[#ff006a]/50 transition-all flex flex-col relative"
               >
                 {/* Anime Poster */}
                 <Link to={`/anime/${toSlug(anime.title)}`} className="aspect-[3/4] relative overflow-hidden block bg-black">
@@ -753,6 +849,17 @@ export default function Profil() {
                     <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-md border border-yellow-500/30 text-yellow-400 font-bold text-[10px] flex items-center gap-1">
                       <Star size={10} className="fill-current" /> {Number(anime.rating).toFixed(1)}
                     </div>
+                  )}
+
+                  {/* Remove favorite quick button for owner */}
+                  {isOwner && (
+                    <button
+                      onClick={(e) => handleRemoveFavorite(e, anime.id)}
+                      title="Saqlanganlardan o'chirish"
+                      className="absolute top-2 left-2 bg-black/80 hover:bg-red-500 text-white/70 hover:text-white p-1.5 rounded-md border border-white/10 backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 z-10"
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   )}
                 </Link>
 

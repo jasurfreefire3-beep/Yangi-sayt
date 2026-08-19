@@ -245,13 +245,28 @@ export default function AnimeDetails() {
           });
           historyList = historyList.slice(0, 20);
           localStorage.setItem('anime_history', JSON.stringify(historyList));
+
+          if (token) {
+            fetch(`${API_BASE}/api/user/watch-progress`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                anime_id: anime.id,
+                episode_number: activeEpisode,
+                minutes_watched: 24
+              })
+            }).catch(() => {});
+          }
         } catch (e) {
           console.error(e);
         }
       };
       saveHistory();
     }
-  }, [anime, activeEpisode]);
+  }, [anime, activeEpisode, token]);
 
   const toggleFavorite = async () => {
     if (!anime) return;
@@ -276,6 +291,19 @@ export default function AnimeDetails() {
         setIsFavorited(true);
       }
       localStorage.setItem('anime_favorites', JSON.stringify(updatedFavs));
+
+      if (token) {
+        fetch(`${API_BASE}/api/user/favorites`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            favorites: updatedFavs
+          })
+        }).catch(() => {});
+      }
     } catch (e) {
       console.error(e);
     }
