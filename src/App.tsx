@@ -42,6 +42,11 @@ export default function App() {
   const location = useLocation();
   const isSupportBot = location.pathname === '/support';
 
+  // Scroll to top on route change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   // Previously we injected several third-party popunder and smart-link scripts which
   // opened popups or created redirects. Those behaviours conflict with ad network
   // policies (Yandex Ads) and can cause resource rejection. To comply, we avoid

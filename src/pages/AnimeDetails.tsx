@@ -575,7 +575,7 @@ export default function AnimeDetails() {
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative w-full md:h-[55vh] md:min-h-[450px] bg-[#09090b] pt-24 pb-12 md:py-0 flex items-end"
+        className="relative w-full min-h-[440px] sm:min-h-[500px] md:h-[55vh] md:min-h-[450px] bg-[#09090b] flex flex-col justify-end pt-16 md:pt-24 pb-4 md:pb-0"
       >
         {/* Background Image Banner */}
         <div className="absolute inset-0 w-full h-full overflow-hidden">
@@ -583,22 +583,35 @@ export default function AnimeDetails() {
             src={anime.banner_url || anime.image_url} 
             alt={`${anime.title} banner`} 
             title={anime.title}
-            className="w-full h-full object-cover opacity-35 md:opacity-100 scale-105 blur-[2px] md:blur-0 transition-all duration-700" 
+            className="w-full h-full object-cover opacity-90 md:opacity-100 md:scale-105 transition-all duration-700 blur-[0px] md:blur-0" 
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/90 md:via-[#09090b]/55 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/60 to-black/30 md:via-[#09090b]/55" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#09090b] via-[#09090b]/75 to-transparent hidden md:block" />
         </div>
+
+        {/* Mobile Top Controls */}
+        <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20 md:hidden">
+          <button 
+            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
+            className="flex items-center gap-2 bg-[#1a1a1c]/80 backdrop-blur-md border border-[#ff9900]/20 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg"
+          >
+            <span className="text-white/80">&larr;</span> ORQAGA
+          </button>
+          <div className="flex items-center gap-1.5 bg-[#1a1a1c]/80 backdrop-blur-md border border-[#ff9900]/20 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg">
+            <Star className="w-3.5 h-3.5 text-[#ffb84d] fill-current" /> {anime.rating ? Number(anime.rating).toFixed(1) : '9.2'}
+          </div>
+        </div>
         
-        <div className="relative w-full px-4 md:px-8 z-10">
-          <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-end max-w-7xl mx-auto">
+        <div className="relative w-full px-4 md:px-8 z-10 pb-4 md:pb-12">
+          <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-start md:items-end max-w-7xl mx-auto">
              {/* Poster Overlay */}
-             <div className="w-32 sm:w-36 md:w-48 shrink-0 rounded-sm overflow-hidden shadow-2xl border border-white/10 transform translate-y-0 md:translate-y-16 hover:scale-105 transition-transform duration-300">
+             <div className="hidden md:block w-32 sm:w-36 md:w-48 shrink-0 rounded-sm overflow-hidden shadow-2xl border border-white/10 transform translate-y-0 md:translate-y-16 hover:scale-105 transition-transform duration-300">
                <img loading="lazy" decoding="async" src={anime.image_url} alt={anime.title} title={anime.title} className="w-full h-full object-cover aspect-[3/4]" />
              </div>
              
              {/* Title & Meta */}
-             <div className="flex-1 text-center md:text-left flex flex-col items-center md:items-start">
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-3">
+             <div className="flex-1 text-left flex flex-col items-start w-full">
+                <div className="hidden md:flex flex-wrap items-center justify-start gap-2 mb-3">
                   <span className="px-2.5 py-1 bg-[#ff006a] text-white text-[9px] uppercase font-bold rounded-sm tracking-wider shadow-[0_0_12px_rgba(255,0,106,0.4)]">
                     {anime.holati === 'Yakunlangan' ? 'YAKUNLANGAN' : 'EFIRDA'}
                   </span>
@@ -631,7 +644,7 @@ export default function AnimeDetails() {
                 </div>
 
                 {anime.tags && (
-                  <div className="flex flex-wrap justify-center md:justify-start gap-1.5 mb-6">
+                  <div className="hidden md:flex flex-wrap justify-start gap-1.5 mb-6">
                     {anime.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => (
                       <span key={tag} className="bg-white/5 border border-white/10 text-white/60 hover:text-white text-[11px] font-medium px-2.5 py-0.5 rounded-sm transition-colors">
                         #{tag}
@@ -641,7 +654,7 @@ export default function AnimeDetails() {
                 )}
 
                 {/* Rating Stars */}
-                <div className="flex items-center gap-0.5 ml-2">
+                <div className="hidden md:flex items-center gap-0.5 ml-2 mb-4">
                     {[1, 2, 3, 4, 5].map((star) => (
                         <button 
                             key={star} 
@@ -660,7 +673,7 @@ export default function AnimeDetails() {
                     <span className="text-white/40 text-[10px] ml-2">({anime.rating_count || 0} baho)</span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <div className="flex flex-row gap-2 md:gap-3 w-full mt-2 md:mt-0">
                   <button 
                     onClick={() => {
                       const playerSec = document.getElementById('player-section');
@@ -668,20 +681,21 @@ export default function AnimeDetails() {
                         playerSec.scrollIntoView({ behavior: 'smooth' });
                       }
                     }}
-                    className="bg-[#ff006a] hover:bg-[#d40058] text-white px-8 py-3 rounded-sm font-black flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 active:translate-y-0 shadow-lg shadow-[#ff006a]/25 text-sm uppercase tracking-wider"
+                    className="flex-1 md:flex-none bg-[#ff006a] hover:bg-[#d40058] text-white px-4 md:px-8 py-3 rounded-sm font-black flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 active:translate-y-0 shadow-lg shadow-[#ff006a]/25 text-[11px] md:text-sm uppercase tracking-wider"
                   >
-                    <Play className="w-4 h-4 fill-current" /> TOMOSHA QILISH
+                    <Play className="w-4 h-4 fill-current shrink-0" /> <span className="hidden min-[400px]:inline">TOMOSHA QILISH</span><span className="inline min-[400px]:hidden">TOMOSHA</span>
                   </button>
                   <button 
                     onClick={toggleFavorite}
-                    className={`px-8 py-3 rounded-sm font-black transition-all flex items-center justify-center gap-2 text-sm border uppercase tracking-wider ${
+                    className={`flex-1 md:flex-none px-4 md:px-8 py-3 rounded-sm font-black transition-all flex items-center justify-center gap-2 text-[11px] md:text-sm border uppercase tracking-wider ${
                       isFavorited 
                         ? 'bg-[#ff006a]/15 border-[#ff006a] text-white shadow-[0_0_15px_rgba(255,0,106,0.25)]' 
                         : 'bg-[#18181b] border-[#27272a] hover:bg-[#27272a] text-white'
                     }`}
                   >
-                    <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current text-[#ff006a]' : ''}`} /> 
-                    {isFavorited ? 'SEVIMLILARDA' : 'SEVIMLILARGA QO\'SHISH'}
+                    <Heart className={`w-4 h-4 shrink-0 ${isFavorited ? 'fill-current text-[#ff006a]' : ''}`} /> 
+                    <span className="hidden min-[400px]:inline">{isFavorited ? 'SEVIMLILARDA' : 'SEVIMLILARGA QO\'SHISH'}</span>
+                    <span className="inline min-[400px]:hidden">{isFavorited ? 'SAQLANDI' : 'SAQLASH'}</span>
                   </button>
                 </div>
              </div>
