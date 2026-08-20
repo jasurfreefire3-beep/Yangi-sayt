@@ -60,17 +60,17 @@ app.use((req, res, next) => {
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 // --- TURNSTILE VERIFICATION ---
-const TURNSTILE_SECRET = "0x4AAAAAAAEWOjz2Rdd8gOSjdUE7kLiJN8kg";
+const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET || "6LdADY8tAAAAADio9AzwRTgqDCKluKa3pspF6aE3";
 
-async function verifyTurnstileToken(token: string, ip: string): Promise<boolean> {
+async function verifyCaptchaToken(token: string, ip: string): Promise<boolean> {
   if (!token) return false;
   try {
     const formData = new URLSearchParams();
-    formData.append('secret', TURNSTILE_SECRET);
+    formData.append('secret', RECAPTCHA_SECRET);
     formData.append('response', token);
     formData.append('remoteip', ip);
     
-    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
       method: 'POST',
       body: formData,
     });
@@ -969,15 +969,15 @@ app.post("/api/auth/send-code", async (req, res) => {
 // FORGOT PASSWORD: Send Code
 app.post("/api/auth/forgot-password-send-code", async (req, res) => {
   try {
-    const { email, turnstileToken } = req.body;
+    const { email, captchaToken } = req.body;
 
-    if (!turnstileToken) {
+    if (!captchaToken) {
       return res.status(400).json({ error: "Robot emasligingizni tasdiqlang!" });
     }
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-    const isHuman = await verifyTurnstileToken(turnstileToken, ip as string);
+    const isHuman = await verifyCaptchaToken(captchaToken, ip as string);
     if (!isHuman) {
-      return res.status(400).json({ error: "Turnstile tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
+      return res.status(400).json({ error: "Captcha tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
     }
     if (!email || !email.includes("@")) {
       return res.status(400).json({ error: "Yaroqli email manzilini kiriting!" });
@@ -1301,15 +1301,15 @@ app.post("/api/auth/register", async (req, res) => {
 // Auth Login
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { email, password, turnstileToken } = req.body;
+    const { email, password, captchaToken } = req.body;
 
-    if (!turnstileToken) {
+    if (!captchaToken) {
       return res.status(400).json({ error: "Robot emasligingizni tasdiqlang!" });
     }
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-    const isHuman = await verifyTurnstileToken(turnstileToken, ip as string);
+    const isHuman = await verifyCaptchaToken(captchaToken, ip as string);
     if (!isHuman) {
-      return res.status(400).json({ error: "Turnstile tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
+      return res.status(400).json({ error: "Captcha tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
     }
     if (!email || !password) {
       return res.status(400).json({ error: "Email va parolni kiriting!" });
@@ -1486,16 +1486,16 @@ app.post("/api/auth/facebook", async (req, res) => {
 // Send 6-digit SMS verification code
 app.post("/api/auth/phone-send-code", async (req, res) => {
   try {
-    const { phone, type, turnstileToken } = req.body;
+    const { phone, type, captchaToken } = req.body;
 
     // Only require turnstile for register and forgot (since those are initial actions)
-    if (!turnstileToken) {
+    if (!captchaToken) {
       return res.status(400).json({ error: "Robot emasligingizni tasdiqlang!" });
     }
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-    const isHuman = await verifyTurnstileToken(turnstileToken, ip as string);
+    const isHuman = await verifyCaptchaToken(captchaToken, ip as string);
     if (!isHuman) {
-      return res.status(400).json({ error: "Turnstile tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
+      return res.status(400).json({ error: "Captcha tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
     } // type: 'register' | 'forgot'
     if (!phone || phone.trim().length < 7) {
       return res.status(400).json({ error: "Iltimos, yaroqli telefon raqamini kiriting!" });
@@ -1690,15 +1690,15 @@ app.post("/api/auth/phone-register-verified", async (req, res) => {
 // Login with Phone Number + Password
 app.post("/api/auth/phone-login", async (req, res) => {
   try {
-    const { phone, password, turnstileToken } = req.body;
+    const { phone, password, captchaToken } = req.body;
 
-    if (!turnstileToken) {
+    if (!captchaToken) {
       return res.status(400).json({ error: "Robot emasligingizni tasdiqlang!" });
     }
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-    const isHuman = await verifyTurnstileToken(turnstileToken, ip as string);
+    const isHuman = await verifyCaptchaToken(captchaToken, ip as string);
     if (!isHuman) {
-      return res.status(400).json({ error: "Turnstile tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
+      return res.status(400).json({ error: "Captcha tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
     }
     if (!phone || !password) {
       return res.status(400).json({ error: "Telefon raqam va parolni kiriting!" });

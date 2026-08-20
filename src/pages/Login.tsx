@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, Mail, Lock, Phone, User, X, Loader2, Send, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Turnstile } from '@marsidev/react-turnstile';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth, googleProvider, facebookAuth, facebookProvider } from '../lib/firebase';
 
@@ -19,7 +19,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string>('');
+  const [captchaToken, setCaptchaToken] = useState<string>('');
+  const [captchaError, setCaptchaError] = useState<string>('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -221,7 +222,7 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!turnstileToken) {
+    if (!captchaToken) {
       setError('Iltimos, robot emasligingizni tasdiqlang!');
       return;
     }
@@ -232,7 +233,7 @@ export default function Login() {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, turnstileToken }),
+          body: JSON.stringify({ email, password, captchaToken }),
         });
 
         const data = await res.json();
@@ -248,7 +249,7 @@ export default function Login() {
         const res = await fetch('/api/auth/phone-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: formatted, password, turnstileToken }),
+          body: JSON.stringify({ phone: formatted, password, captchaToken }),
         });
 
         const data = await res.json();
@@ -357,7 +358,7 @@ export default function Login() {
       const res = await fetch('/api/auth/forgot-password-send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail, turnstileToken }),
+        body: JSON.stringify({ email: resetEmail, captchaToken }),
       });
 
       const data = await res.json();
@@ -636,17 +637,22 @@ export default function Login() {
               </div>
 
               <div className="flex justify-center mb-4">
-                    <Turnstile 
-                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
-                      onSuccess={(token) => setTurnstileToken(token)}
-                      onError={(err) => console.error("Turnstile error:", err)}
-                      onExpire={() => setTurnstileToken("")}
-                      theme="dark"
-                    />
+                    {captchaError && (
+          <div className="p-3 mb-4 text-sm text-red-900 bg-red-100 border border-red-300 rounded-lg">
+            <b>{captchaError}</b>
+          </div>
+        )}
+        <ReCAPTCHA
+  sitekey="6LdADY8tAAAAAJeHBsf1HLV-ArmkHgRNvQgZfClP"
+  onChange={(token) => setCaptchaToken(token || '')}
+  onExpired={() => setCaptchaToken('')}
+  onErrored={() => setCaptchaError('ReCAPTCHA xatosi')}
+  theme="dark"
+/>
                   </div>
                   <button
                     type="submit"
-                    disabled={loading || !turnstileToken}
+                    disabled={loading || !captchaToken}
                     className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-6 uppercase text-xs tracking-wider cursor-pointer flex items-center justify-center gap-2"
               >
                 {loading ? (
@@ -780,17 +786,22 @@ export default function Login() {
               </div>
 
               <div className="flex justify-center mb-4">
-                    <Turnstile 
-                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
-                      onSuccess={(token) => setTurnstileToken(token)}
-                      onError={(err) => console.error("Turnstile error:", err)}
-                      onExpire={() => setTurnstileToken("")}
-                      theme="dark"
-                    />
+                    {captchaError && (
+          <div className="p-3 mb-4 text-sm text-red-900 bg-red-100 border border-red-300 rounded-lg">
+            <b>{captchaError}</b>
+          </div>
+        )}
+        <ReCAPTCHA
+  sitekey="6LdADY8tAAAAAJeHBsf1HLV-ArmkHgRNvQgZfClP"
+  onChange={(token) => setCaptchaToken(token || '')}
+  onExpired={() => setCaptchaToken('')}
+  onErrored={() => setCaptchaError('ReCAPTCHA xatosi')}
+  theme="dark"
+/>
                   </div>
                   <button
                     type="submit"
-                    disabled={forgotLoading || !turnstileToken}
+                    disabled={forgotLoading || !captchaToken}
                     className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {forgotLoading ? (
@@ -854,17 +865,22 @@ export default function Login() {
               </div>
 
               <div className="flex justify-center mb-4">
-                    <Turnstile 
-                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
-                      onSuccess={(token) => setTurnstileToken(token)}
-                      onError={(err) => console.error("Turnstile error:", err)}
-                      onExpire={() => setTurnstileToken("")}
-                      theme="dark"
-                    />
+                    {captchaError && (
+          <div className="p-3 mb-4 text-sm text-red-900 bg-red-100 border border-red-300 rounded-lg">
+            <b>{captchaError}</b>
+          </div>
+        )}
+        <ReCAPTCHA
+  sitekey="6LdADY8tAAAAAJeHBsf1HLV-ArmkHgRNvQgZfClP"
+  onChange={(token) => setCaptchaToken(token || '')}
+  onExpired={() => setCaptchaToken('')}
+  onErrored={() => setCaptchaError('ReCAPTCHA xatosi')}
+  theme="dark"
+/>
                   </div>
                   <button
                     type="submit"
-                    disabled={forgotLoading || !turnstileToken}
+                    disabled={forgotLoading || !captchaToken}
                     className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
               >
                 {forgotLoading ? (
@@ -925,17 +941,22 @@ export default function Login() {
               </div>
 
               <div className="flex justify-center mb-4">
-                    <Turnstile 
-                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
-                      onSuccess={(token) => setTurnstileToken(token)}
-                      onError={(err) => console.error("Turnstile error:", err)}
-                      onExpire={() => setTurnstileToken("")}
-                      theme="dark"
-                    />
+                    {captchaError && (
+          <div className="p-3 mb-4 text-sm text-red-900 bg-red-100 border border-red-300 rounded-lg">
+            <b>{captchaError}</b>
+          </div>
+        )}
+        <ReCAPTCHA
+  sitekey="6LdADY8tAAAAAJeHBsf1HLV-ArmkHgRNvQgZfClP"
+  onChange={(token) => setCaptchaToken(token || '')}
+  onExpired={() => setCaptchaToken('')}
+  onErrored={() => setCaptchaError('ReCAPTCHA xatosi')}
+  theme="dark"
+/>
                   </div>
                   <button
                     type="submit"
-                    disabled={forgotLoading || !turnstileToken}
+                    disabled={forgotLoading || !captchaToken}
                     className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
               >
                 {forgotLoading ? (

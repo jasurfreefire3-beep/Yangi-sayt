@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, User, Phone, ArrowLeft, Loader2, CheckCircle2, Send, ShieldCheck, KeyRound, X } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Turnstile } from '@marsidev/react-turnstile';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth, googleProvider, facebookAuth, facebookProvider } from '../lib/firebase';
 
@@ -35,7 +35,8 @@ export default function Register() {
   const [firebaseUid, setFirebaseUid] = useState('');
 
   const [loading, setLoading] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string>('');
+  const [captchaToken, setCaptchaToken] = useState<string>('');
+  const [captchaError, setCaptchaError] = useState<string>('');
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const [error, setError] = useState('');
@@ -333,7 +334,7 @@ export default function Register() {
       const res = await fetch('/api/auth/phone-send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: formatted, type: 'register', turnstileToken }),
+        body: JSON.stringify({ phone: formatted, type: 'register', captchaToken }),
       });
 
       const data = await res.json();
@@ -783,17 +784,22 @@ export default function Register() {
               </div>
 
               <div className="flex justify-center mb-4">
-                    <Turnstile 
-                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
-                      onSuccess={(token) => setTurnstileToken(token)}
-                      onError={(err) => console.error("Turnstile error:", err)}
-                      onExpire={() => setTurnstileToken("")}
-                      theme="dark"
-                    />
+                    {captchaError && (
+          <div className="p-3 mb-4 text-sm text-red-900 bg-red-100 border border-red-300 rounded-lg">
+            <b>{captchaError}</b>
+          </div>
+        )}
+        <ReCAPTCHA
+  sitekey="6LdADY8tAAAAAJeHBsf1HLV-ArmkHgRNvQgZfClP"
+  onChange={(token) => setCaptchaToken(token || '')}
+  onExpired={() => setCaptchaToken('')}
+  onErrored={() => setCaptchaError('ReCAPTCHA xatosi')}
+  theme="dark"
+/>
                   </div>
                   <button
                     type="submit"
-                    disabled={loading || !turnstileToken}
+                    disabled={loading || !captchaToken}
                     className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {loading ? (
@@ -857,17 +863,22 @@ export default function Register() {
               </div>
 
               <div className="flex justify-center mb-4">
-                    <Turnstile 
-                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
-                      onSuccess={(token) => setTurnstileToken(token)}
-                      onError={(err) => console.error("Turnstile error:", err)}
-                      onExpire={() => setTurnstileToken("")}
-                      theme="dark"
-                    />
+                    {captchaError && (
+          <div className="p-3 mb-4 text-sm text-red-900 bg-red-100 border border-red-300 rounded-lg">
+            <b>{captchaError}</b>
+          </div>
+        )}
+        <ReCAPTCHA
+  sitekey="6LdADY8tAAAAAJeHBsf1HLV-ArmkHgRNvQgZfClP"
+  onChange={(token) => setCaptchaToken(token || '')}
+  onExpired={() => setCaptchaToken('')}
+  onErrored={() => setCaptchaError('ReCAPTCHA xatosi')}
+  theme="dark"
+/>
                   </div>
                   <button
                     type="submit"
-                    disabled={loading || !turnstileToken}
+                    disabled={loading || !captchaToken}
                     className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {loading ? (
@@ -966,17 +977,22 @@ export default function Register() {
               </div>
 
               <div className="flex justify-center mb-4">
-                    <Turnstile 
-                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
-                      onSuccess={(token) => setTurnstileToken(token)}
-                      onError={(err) => console.error("Turnstile error:", err)}
-                      onExpire={() => setTurnstileToken("")}
-                      theme="dark"
-                    />
+                    {captchaError && (
+          <div className="p-3 mb-4 text-sm text-red-900 bg-red-100 border border-red-300 rounded-lg">
+            <b>{captchaError}</b>
+          </div>
+        )}
+        <ReCAPTCHA
+  sitekey="6LdADY8tAAAAAJeHBsf1HLV-ArmkHgRNvQgZfClP"
+  onChange={(token) => setCaptchaToken(token || '')}
+  onExpired={() => setCaptchaToken('')}
+  onErrored={() => setCaptchaError('ReCAPTCHA xatosi')}
+  theme="dark"
+/>
                   </div>
                   <button
                     type="submit"
-                    disabled={loading || !turnstileToken}
+                    disabled={loading || !captchaToken}
                     className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {loading ? (
