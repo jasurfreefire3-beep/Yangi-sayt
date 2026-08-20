@@ -11,6 +11,7 @@ import Admin from './pages/Admin';
 import Chat from './pages/Chat';
 import ChatWidget from './components/ChatWidget';
 import SpinBetterAdModal from './components/SpinBetterAdModal';
+import NotificationPromptModal from './components/NotificationPromptModal';
 import { Send, X, Instagram } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -221,10 +222,11 @@ export default function App() {
         <Footer />
       </div>
 
-      {/* 4. Overlay Chat widgets, Mobile Navigation & Ad Modal */}
+      {/* 4. Overlay Chat widgets, Mobile Navigation, Ad Modal & Notification Prompt */}
       <MobileBottomNav />
       <ChatWidget />
       <SpinBetterAdModal />
+      <NotificationPromptModal />
     </div>
   );
 }

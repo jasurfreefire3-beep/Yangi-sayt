@@ -2,8 +2,14 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Notification, Anime, toSlug } from '../types';
-import { Search, LogOut, User, Bell, Menu, PlusCircle, Heart, Settings, X, Shield, Star, Film } from 'lucide-react';
+import { Search, LogOut, User, Bell, Menu, PlusCircle, Heart, Settings, X, Shield, Star, Film, Sparkles, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { 
+  getNotificationPermission, 
+  requestNotificationPermission, 
+  checkAndNotifyNewContent, 
+  sendDeviceNotification 
+} from '../services/notificationService';
 const logoImg = "https://i.pinimg.com/736x/17/c6/88/17c688c6242fe4c3293be182924e73a3.jpg";
 
 interface NavbarProps {
@@ -41,6 +47,9 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           const data = await res.json();
           if (Array.isArray(data)) {
             setNotifications(data);
+            if (allAnimes.length > 0) {
+              checkAndNotifyNewContent(allAnimes, data);
+            }
           }
         }
       } catch (err: any) {
@@ -57,6 +66,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           const data = await res.json();
           if (Array.isArray(data)) {
             setAllAnimes(data);
+            checkAndNotifyNewContent(data, notifications);
           }
         }
       } catch (err) {}
@@ -382,6 +392,25 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                     <X size={12} />
                   </button>
                 </div>
+
+                {/* Device Push Notification Quick Prompt */}
+                {getNotificationPermission() !== 'granted' && (
+                  <div className="p-2.5 bg-[#ff006a]/10 border-b border-[#ff006a]/20 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Bell className="w-3.5 h-3.5 text-[#ff006a] shrink-0 animate-pulse" />
+                      <span className="text-[11px] text-white/80 font-medium truncate">Yangi animelardan xabar olish</span>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await requestNotificationPermission();
+                        setShowNotifications(false);
+                      }}
+                      className="px-2.5 py-1 bg-[#ff006a] hover:bg-[#e6005c] text-white text-[10px] font-bold rounded uppercase shrink-0 transition-all cursor-pointer"
+                    >
+                      Yoqish
+                    </button>
+                  </div>
+                )}
                 <div className="divide-y divide-[#1a1a1c] max-h-72 overflow-y-auto custom-scrollbar">
                   {notifications.length === 0 ? (
                     <div className="p-4 text-xs text-center text-white/40">Yangi bildirishnomalar yo'q.</div>

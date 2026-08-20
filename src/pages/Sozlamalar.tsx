@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Settings, Eye, Globe, Film, ToggleLeft, ToggleRight, Sparkles, Check } from 'lucide-react';
+import { Settings, Eye, Globe, Film, ToggleLeft, ToggleRight, Sparkles, Check, Bell, Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
+import { 
+  getNotificationPermission, 
+  requestNotificationPermission, 
+  sendDeviceNotification,
+  isNotificationSupported 
+} from '../services/notificationService';
 
 export default function Sozlamalar() {
   const [theme, setTheme] = useState(() => {
@@ -11,6 +17,8 @@ export default function Sozlamalar() {
   const [quality, setQuality] = useState('1080p');
   const [autoPlay, setAutoPlay] = useState(true);
   const [savedMessage, setSavedMessage] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<string>('default');
+  const [testSent, setTestSent] = useState(false);
 
   useEffect(() => {
     // Sync with html class initial state
@@ -35,6 +43,8 @@ export default function Sozlamalar() {
       setLanguage(savedLang);
     }
 
+    setNotifPermission(getNotificationPermission());
+
     const syncTheme = () => {
       const currentSaved = localStorage.getItem('theme');
       setTheme(currentSaved === 'light' ? 'Yorug\'' : 'Qorong\'i');
@@ -43,6 +53,40 @@ export default function Sozlamalar() {
     window.addEventListener('theme-changed', syncTheme);
     return () => window.removeEventListener('theme-changed', syncTheme);
   }, []);
+
+  const handleToggleNotifications = async () => {
+    if (!isNotificationSupported()) {
+      alert("Kechirasiz, brauzeringiz bildirishnomalarni qo'llab-quvvatlamaydi.");
+      return;
+    }
+    const granted = await requestNotificationPermission();
+    setNotifPermission(getNotificationPermission());
+    if (granted) {
+      triggerSaveAlert();
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    if (notifPermission !== 'granted') {
+      const granted = await requestNotificationPermission();
+      setNotifPermission(getNotificationPermission());
+      if (!granted) return;
+    }
+
+    const success = await sendDeviceNotification({
+      title: "Animem.uz | Yangi Anime Premyerasi! 🎬",
+      body: "Solo Leveling 2-mavsum 1-qismi o'zbek tilida yuklandi! Tomosha qilish uchun bosing.",
+      icon: "/icon-192.png",
+      badge: "/icon-48.png",
+      url: "/",
+      tag: "test-notification"
+    });
+
+    if (success) {
+      setTestSent(true);
+      setTimeout(() => setTestSent(false), 3500);
+    }
+  };
 
   const handleThemeChange = (val: string) => {
     setTheme(val);
@@ -192,7 +236,7 @@ export default function Sozlamalar() {
           </div>
           <button
             onClick={handleAutoplayToggle}
-            className="p-1 text-white hover:text-[#ff006a] transition-all"
+            className="p-1 text-white hover:text-[#ff006a] transition-all cursor-pointer"
           >
             {autoPlay ? (
               <ToggleRight size={40} className="text-[#ff006a]" />
@@ -200,6 +244,56 @@ export default function Sozlamalar() {
               <ToggleLeft size={40} className="text-white/30" />
             )}
           </button>
+        </div>
+
+        {/* Push Notifications Settings */}
+        <div className="pt-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Bell size={16} className="text-[#ff006a]" /> Brauzer Bildirishnomalari (Push)
+              </h3>
+              <p className="text-white/40 text-xs">
+                Yangi animelar va qismlar chiqqanda Google Chrome, Android yoki kompyuteringizga bildirishnoma keladi
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleToggleNotifications}
+                className={`px-4 py-2 rounded-sm text-xs font-bold border transition-all flex items-center gap-2 cursor-pointer ${
+                  notifPermission === 'granted'
+                    ? 'bg-green-500/20 border-green-500/40 text-green-400'
+                    : 'bg-[#ff006a] border-[#ff006a] hover:bg-[#e6005c] text-white shadow-[0_0_12px_rgba(255,0,106,0.3)]'
+                }`}
+              >
+                {notifPermission === 'granted' ? (
+                  <>
+                    <CheckCircle2 size={14} /> Yoqilgan (Faol)
+                  </>
+                ) : (
+                  <>
+                    <Bell size={14} /> Bildirishnomani Yoqish
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Test Notification Button & Status */}
+          <div className="bg-[#0a0a0c] border border-white/5 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="text-xs text-white/70 flex items-center gap-2">
+              <Sparkles size={14} className="text-yellow-400 shrink-0" />
+              <span>Bildirishnoma qurilmangizda qanday ko'rinishini tekshirib ko'ring:</span>
+            </div>
+            <button
+              onClick={handleSendTestNotification}
+              className="px-3.5 py-1.5 bg-white/10 hover:bg-white/15 active:scale-95 text-white text-xs font-semibold rounded-lg border border-white/10 transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Send size={13} className="text-[#ff006a]" />
+              <span>{testSent ? "Yuborildi! ✨" : "Test bildirishnoma"}</span>
+            </button>
+          </div>
         </div>
 
       </div>
