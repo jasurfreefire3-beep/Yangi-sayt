@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Anime, Comment, translateGenre, toSlug } from '../types';
-import { Star, MessageSquare, Send, Clock, Play, Plus, Calendar, Building, ListOrdered, Share2, Heart, Flag, PlayCircle, Eye, Shield, Moon, Sun, Trash2, Trophy, X, ThumbsUp, ThumbsDown, MessageCircle } from 'lucide-react';
+import { Star, MessageSquare, Send, Clock, Play, Plus, Calendar, Building, ListOrdered, Share2, Heart, Flag, PlayCircle, Eye, Shield, Moon, Sun, Trash2, Trophy, X, ThumbsUp, ThumbsDown, MessageCircle, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import VideoPlayer from '../components/VideoPlayer';
 import AgeGate from '../components/AgeGate';
@@ -494,6 +494,18 @@ export default function AnimeDetails() {
     </div>
   );
 
+  const handleBack = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/animelar');
+    }
+  };
+
   if (anime.is_adult && !adultConfirmed) {
     return (
       <AgeGate
@@ -503,7 +515,7 @@ export default function AnimeDetails() {
           localStorage.setItem('animem_18plus_ok', '1');
           setAdultConfirmed(true);
         }}
-        onBack={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+        onBack={handleBack}
       />
     );
   }
@@ -590,14 +602,16 @@ export default function AnimeDetails() {
         </div>
 
         {/* Mobile Top Controls */}
-        <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20 md:hidden">
+        <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-30 md:hidden pointer-events-auto">
           <button 
-            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
-            className="flex items-center gap-2 bg-[#1a1a1c]/80 backdrop-blur-md border border-[#ff9900]/20 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg"
+            type="button"
+            onClick={handleBack}
+            className="flex items-center gap-2 bg-[#141416]/90 hover:bg-[#ff006a] active:bg-[#ff006a] backdrop-blur-md border border-white/15 hover:border-[#ff006a] text-white px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider shadow-xl transition-all duration-200 active:scale-95 cursor-pointer touch-manipulation"
           >
-            <span className="text-white/80">&larr;</span> ORQAGA
+            <ArrowLeft className="w-4 h-4 text-white" />
+            <span>ORQAGA</span>
           </button>
-          <div className="flex items-center gap-1.5 bg-[#1a1a1c]/80 backdrop-blur-md border border-[#ff9900]/20 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg">
+          <div className="flex items-center gap-1.5 bg-[#141416]/90 backdrop-blur-md border border-white/15 text-white px-3 py-2.5 rounded-xl text-xs font-bold shadow-xl">
             <Star className="w-3.5 h-3.5 text-[#ffb84d] fill-current" /> {anime.rating ? Number(anime.rating).toFixed(1) : '9.2'}
           </div>
         </div>
@@ -801,25 +815,32 @@ export default function AnimeDetails() {
 
                {/* Episode Selector */}
                <div className="animem-episodes-panel px-4 md:px-6 py-5">
-                  <h3 className="text-xs font-bold text-[#ff9ac5] uppercase tracking-widest mb-4 flex items-center gap-2">
-                     <ListOrdered className="w-3.5 h-3.5" /> Qismlar
-                  </h3>
-                  <div className="flex flex-wrap gap-3">
-                     {combinedEpisodes.map(ep => (
-                        <button 
-                           key={ep.number}
-                           onClick={() => handleEpisodeClick(ep)}
-                           className={`w-14 h-12 rounded-xl text-sm font-semibold transition-all flex items-center justify-center border ${
-                              activeEpisode === ep.number 
-                                 ? 'bg-[#1b0b16] border-[#ff006a] text-white shadow-[0_0_18px_rgba(255,0,106,0.42)]'
-                              : ep.video_url
-                                    ? 'bg-[#171720] hover:bg-[#281421] hover:border-[#ff006a]/50 border-white/10 text-white'
-                                    : 'bg-[#09090b] text-white/10 border border-[#1a1a1a] cursor-not-allowed'
-                           }`}
-                        >
-                           {ep.number}
-                        </button>
-                     ))}
+                  <div className="flex items-center justify-between mb-3.5">
+                    <h3 className="text-xs font-bold text-[#ff9ac5] uppercase tracking-widest flex items-center gap-2">
+                       <ListOrdered className="w-3.5 h-3.5" /> Qismlar
+                    </h3>
+                    <span className="text-[11px] font-mono text-white/40">
+                      Jami: {combinedEpisodes.length} ta qism
+                    </span>
+                  </div>
+                  <div className="max-h-[195px] md:max-h-[230px] overflow-y-auto pr-1.5 custom-scrollbar p-1">
+                    <div className="flex flex-wrap gap-2.5 sm:gap-3">
+                       {combinedEpisodes.map(ep => (
+                          <button 
+                             key={ep.number}
+                             onClick={() => handleEpisodeClick(ep)}
+                             className={`w-12 h-11 sm:w-14 sm:h-12 rounded-xl text-sm font-semibold transition-all flex items-center justify-center border shrink-0 ${
+                                activeEpisode === ep.number 
+                                   ? 'bg-[#1b0b16] border-[#ff006a] text-white shadow-[0_0_18px_rgba(255,0,106,0.42)]'
+                                : ep.video_url
+                                      ? 'bg-[#171720] hover:bg-[#281421] hover:border-[#ff006a]/50 border-white/10 text-white'
+                                      : 'bg-[#09090b] text-white/10 border border-[#1a1a1a] cursor-not-allowed'
+                             }`}
+                          >
+                             {ep.number}
+                          </button>
+                       ))}
+                    </div>
                   </div>
                </div>
             </motion.section>

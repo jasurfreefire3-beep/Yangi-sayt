@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Anime, translateGenre, getEnglishGenre, toSlug } from '../types';
-import { Star, Play, Grid, List, Film, Calendar, Eye, Search, X } from 'lucide-react';
+import { Star, Play, Grid, List, Film, Eye, Search, X, ChevronDown } from 'lucide-react';
 import { motion } from 'motion/react';
 import AnimeCard from '../components/AnimeCard';
 import AdBanner728x90 from '../components/AdBanner728x90';
+
+// Calculate responsive batch size (approx. 2.5 - 3 rows depending on device)
+const getBatchSize = () => {
+  if (typeof window !== 'undefined') {
+    if (window.innerWidth < 640) return 6; // Mobile (2 cols): 3 rows = 6 items
+    if (window.innerWidth < 1024) return 10; // Tablet (3-4 cols): ~2.5 rows
+    return 15; // Desktop (5-6 cols): ~2.5 rows (15 items)
+  }
+  return 12;
+};
 
 export default function Animelar() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,10 +25,16 @@ export default function Animelar() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [localSearch, setLocalSearch] = useState(searchFilter);
+  const [visibleCount, setVisibleCount] = useState<number>(getBatchSize);
 
   useEffect(() => {
     setLocalSearch(searchFilter);
   }, [searchFilter]);
+
+  // Reset pagination when genre or search query changes
+  useEffect(() => {
+    setVisibleCount(getBatchSize());
+  }, [genreFilter, searchFilter]);
 
   useEffect(() => {
     if (genreFilter && genreFilter !== 'Barchasi') {
@@ -111,6 +127,13 @@ export default function Animelar() {
     setSearchParams(searchParams);
   };
 
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => prev + getBatchSize());
+  };
+
+  const visibleAnimes = filteredAnimes.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredAnimes.length;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -133,7 +156,9 @@ export default function Animelar() {
               'Barcha Animelar'
             )}
           </h1>
-          <p className="text-white/40 text-xs mt-1">Katalogda jami {filteredAnimes.length} ta anime mavjud</p>
+          <p className="text-white/40 text-xs mt-1">
+            Katalogda jami {filteredAnimes.length} ta anime mavjud {filteredAnimes.length > visibleCount && `(${visibleAnimes.length} tasi ko'rsatilmoqda)`}
+          </p>
         </div>
 
         {/* Search input + Grid/List View Toggles */}
@@ -207,20 +232,19 @@ export default function Animelar() {
             }}
             className="bg-[#ff006a] hover:bg-[#d40058] text-white text-xs font-bold px-4 py-2 rounded-sm transition-colors"
           >
-            Filtrlarni tozalash
-          </button>
+            Filtrlarni tozalash          </button>
         </div>
       )}
 
       {/* Anime Grid */}
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {filteredAnimes.map((anime, idx) => (
+          {visibleAnimes.map((anime, idx) => (
             <motion.div
               key={anime.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.03 }}
+              transition={{ delay: (idx % 15) * 0.02 }}
             >
               <AnimeCard anime={anime} />
             </motion.div>
@@ -229,12 +253,12 @@ export default function Animelar() {
       ) : (
         /* List View */
         <div className="space-y-3">
-          {filteredAnimes.map((anime, idx) => (
+          {visibleAnimes.map((anime, idx) => (
             <motion.div
               key={anime.id}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.03 }}
+              transition={{ delay: (idx % 15) * 0.02 }}
               className="bg-[#111] border border-[#222] p-3 rounded-sm flex gap-4 hover:border-[#ff006a]/30 transition-colors group"
             >
               <Link to={`/anime/${toSlug(anime.title)}`} title={anime.title} className="w-16 h-20 rounded-sm overflow-hidden bg-[#000] shrink-0 border border-[#222] relative block">
@@ -245,6 +269,7 @@ export default function Animelar() {
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                 />
               </Link>
+
               <div className="flex-1 min-w-0 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-2">
@@ -259,6 +284,7 @@ export default function Animelar() {
                   </div>
                   <p className="text-white/50 text-xs line-clamp-2 mt-1 leading-relaxed">{anime.description}</p>
                 </div>
+
                 <div className="flex items-center gap-4 text-[10px] text-white/40 mt-2 font-mono">
                   <span>HOLATI: <span className="text-[#ff006a] font-bold">{anime.holati?.toUpperCase() || 'NOMA\'LUM'}</span></span>
                   <span>|</span>
@@ -269,6 +295,7 @@ export default function Animelar() {
                   <span className="flex items-center gap-1">KO'RISHLAR: <span className="text-white/60 flex items-center gap-0.5"><Eye className="w-3.5 h-3.5 text-[#ff006a]" /> {anime.korishlar || 0} ta</span></span>
                 </div>
               </div>
+
               <div className="flex items-center shrink-0 pr-2">
                 <Link
                   to={`/anime/${toSlug(anime.title)}`}
@@ -279,6 +306,19 @@ export default function Animelar() {
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {/* Centered Load More Button */}
+      {hasMore && (
+        <div className="flex justify-center pt-8 pb-4">
+          <button
+            onClick={handleLoadMore}
+            className="group inline-flex items-center gap-2.5 px-8 py-3.5 bg-[#111113] hover:bg-[#ff006a] text-white text-xs font-black uppercase tracking-wider rounded-sm border border-[#26262a] hover:border-[#ff006a] shadow-xl hover:shadow-[0_0_25px_rgba(255,0,106,0.4)] transition-all duration-300 active:scale-95 cursor-pointer"
+          >
+            <span>Ko'proq yuklash</span>
+            <ChevronDown size={16} className="text-[#ff006a] group-hover:text-white group-hover:translate-y-0.5 transition-all duration-300" />
+          </button>
         </div>
       )}
     </div>

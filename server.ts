@@ -2542,6 +2542,75 @@ function toAnimeSlug(text: string): string {
  * deep link, so neither a Telegram bot token nor the actual media file is
  * exposed to browsers.
  */
+
+// --- TELEGRAM NOTIFICATION BOT ---
+const TG_BOT_TOKEN = "8838457415:AAEKau5X5g-yj1ghMq00zsS-uzolghL9-LI";
+const TG_CHANNEL_ID = "-1004310971743";
+
+async function notifyTelegramNewAnime(animeId: number, episodeNumber: number | null = null) {
+  try {
+    let animeData: any = null;
+    try {
+      const [rows]: any = await dbQuery("SELECT * FROM animes WHERE id = ?", [animeId]);
+      if (rows && rows.length > 0) {
+        animeData = rows[0];
+      }
+    } catch (dbErr) {
+      const store = loadLocalStore();
+      animeData = (store.animes || []).find((a: any) => String(a.id) === String(animeId));
+    }
+
+    if (!animeData) {
+      console.error("Could not find animeData for notification:", animeId);
+      return;
+    }
+
+    const toSlugLocal = (text: string): string => {
+      if (!text) return "";
+      return text
+        .toLowerCase()
+        .replace(/o['’`‘]/g, "o")
+        .replace(/g['’`‘]/g, "g")
+        .replace(/[^a-z0-9\u0400-\u04FF]+/gi, "-")
+        .replace(/^-+|-+$/g, "");
+    };
+
+    const slug = toSlugLocal(animeData.title);
+    const link = `https://animem.uz/anime/${slug}`;
+    const epString = episodeNumber ? `🔢Qism: ${episodeNumber}` : `🔢Qism: ${animeData.qismlar_soni || 1}`;
+    const safeTitle = animeData.title.replace(/[_*`\[\]]/g, '');
+    let yiliStr = animeData.yil ? `\n📅Yili: ${animeData.yil}` : "";
+    
+    const caption = `🎬Yangi Qoshildi!\n\n📺Anime: *${safeTitle}*${yiliStr}\n${epString}\n\n🇺🇿O'zbek Tilida!\n\n▶️[Tomosha qilish!](${link})`;
+    
+    let imageUrl = animeData.image_url;
+    if (imageUrl && !imageUrl.startsWith('http')) {
+      imageUrl = `https://animem.uz${imageUrl}`;
+    }
+
+    const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: TG_CHANNEL_ID,
+        photo: imageUrl || "https://animem.uz/logo.png",
+        caption: caption,
+        parse_mode: "Markdown"
+      })
+    });
+    
+    const result = await res.json();
+    if (!result.ok) {
+       console.error("Telegram API error:", result);
+    } else {
+       console.log("Telegram notification sent successfully!");
+    }
+  } catch (error) {
+    console.error("Telegram notify failed:", error);
+  }
+}
+// ---------------------------------
+
 app.post("/api/integrations/animebot/episode", async (req, res) => {
   const suppliedSecret = req.headers.authorization?.replace(/^Bearer\s+/i, "");
   if (!ANIMEBOT_SYNC_SECRET || suppliedSecret !== ANIMEBOT_SYNC_SECRET) {
@@ -2596,6 +2665,9 @@ app.post("/api/integrations/animebot/episode", async (req, res) => {
       await dbQuery(
         "INSERT INTO episodes (anime_id, episode_number, video_url) VALUES (?, ?, ?)", [animeId, episodeNumber, telegram_url]
       );
+      
+      // Notify Telegram channel
+      notifyTelegramNewAnime(animeId, episodeNumber);
     }
   } catch (error) {
     // Local store mirrors normal API behavior if MySQL is temporarily offline.
@@ -3236,6 +3308,9 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
     store.animes.unshift(newObj);
     saveLocalStore(store);
 
+    // Notify Telegram
+    notifyTelegramNewAnime(insertId, qismlar_soni ? Number(qismlar_soni) : null);
+
     res.status(201).json({ id: insertId });
   } catch (err) {
     console.error("Add anime error:", err);
@@ -3427,6 +3502,9 @@ app.post("/api/animes/:animeId/episodes", authenticateToken, async (req: any, re
           [anime_id, epNum, video_url]
         );
         if (result && result.insertId) epId = result.insertId;
+        
+        // Notify Telegram
+        notifyTelegramNewAnime(anime_id, epNum);
       }
     } catch (dbErr) {
       console.warn("DB save episode failed, relying on local store:", (dbErr as any)?.message);
