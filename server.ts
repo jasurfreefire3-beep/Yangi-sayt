@@ -58,6 +58,31 @@ app.use((req, res, next) => {
 });
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+
+// --- TURNSTILE VERIFICATION ---
+const TURNSTILE_SECRET = "0x4AAAAAAAEWOjz2Rdd8gOSjdUE7kLiJN8kg";
+
+async function verifyTurnstileToken(token: string, ip: string): Promise<boolean> {
+  if (!token) return false;
+  try {
+    const formData = new URLSearchParams();
+    formData.append('secret', TURNSTILE_SECRET);
+    formData.append('response', token);
+    formData.append('remoteip', ip);
+    
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    const data = await res.json();
+    return data.success === true;
+  } catch (err) {
+    console.error("Turnstile verification error:", err);
+    return false;
+  }
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || "anime_super_secret_key";
 const ANIMEBOT_SYNC_SECRET = process.env.ANIMEBOT_SYNC_SECRET || "";
 
@@ -944,7 +969,16 @@ app.post("/api/auth/send-code", async (req, res) => {
 // FORGOT PASSWORD: Send Code
 app.post("/api/auth/forgot-password-send-code", async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, turnstileToken } = req.body;
+
+    if (!turnstileToken) {
+      return res.status(400).json({ error: "Robot emasligingizni tasdiqlang!" });
+    }
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const isHuman = await verifyTurnstileToken(turnstileToken, ip as string);
+    if (!isHuman) {
+      return res.status(400).json({ error: "Turnstile tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
+    }
     if (!email || !email.includes("@")) {
       return res.status(400).json({ error: "Yaroqli email manzilini kiriting!" });
     }
@@ -1267,7 +1301,16 @@ app.post("/api/auth/register", async (req, res) => {
 // Auth Login
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, turnstileToken } = req.body;
+
+    if (!turnstileToken) {
+      return res.status(400).json({ error: "Robot emasligingizni tasdiqlang!" });
+    }
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const isHuman = await verifyTurnstileToken(turnstileToken, ip as string);
+    if (!isHuman) {
+      return res.status(400).json({ error: "Turnstile tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
+    }
     if (!email || !password) {
       return res.status(400).json({ error: "Email va parolni kiriting!" });
     }
@@ -1443,7 +1486,17 @@ app.post("/api/auth/facebook", async (req, res) => {
 // Send 6-digit SMS verification code
 app.post("/api/auth/phone-send-code", async (req, res) => {
   try {
-    const { phone, type } = req.body; // type: 'register' | 'forgot'
+    const { phone, type, turnstileToken } = req.body;
+
+    // Only require turnstile for register and forgot (since those are initial actions)
+    if (!turnstileToken) {
+      return res.status(400).json({ error: "Robot emasligingizni tasdiqlang!" });
+    }
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const isHuman = await verifyTurnstileToken(turnstileToken, ip as string);
+    if (!isHuman) {
+      return res.status(400).json({ error: "Turnstile tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
+    } // type: 'register' | 'forgot'
     if (!phone || phone.trim().length < 7) {
       return res.status(400).json({ error: "Iltimos, yaroqli telefon raqamini kiriting!" });
     }
@@ -1637,7 +1690,16 @@ app.post("/api/auth/phone-register-verified", async (req, res) => {
 // Login with Phone Number + Password
 app.post("/api/auth/phone-login", async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { phone, password, turnstileToken } = req.body;
+
+    if (!turnstileToken) {
+      return res.status(400).json({ error: "Robot emasligingizni tasdiqlang!" });
+    }
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const isHuman = await verifyTurnstileToken(turnstileToken, ip as string);
+    if (!isHuman) {
+      return res.status(400).json({ error: "Turnstile tasdiqlanmadi. Iltimos qaytadan urinib ko'ring." });
+    }
     if (!phone || !password) {
       return res.status(400).json({ error: "Telefon raqam va parolni kiriting!" });
     }

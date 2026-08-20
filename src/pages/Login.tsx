@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, Mail, Lock, Phone, User, X, Loader2, Send, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth, googleProvider, facebookAuth, facebookProvider } from '../lib/firebase';
 
@@ -18,6 +19,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -219,6 +221,10 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!turnstileToken) {
+      setError('Iltimos, robot emasligingizni tasdiqlang!');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -226,7 +232,7 @@ export default function Login() {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, turnstileToken }),
         });
 
         const data = await res.json();
@@ -242,7 +248,7 @@ export default function Login() {
         const res = await fetch('/api/auth/phone-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: formatted, password }),
+          body: JSON.stringify({ phone: formatted, password, turnstileToken }),
         });
 
         const data = await res.json();
@@ -351,7 +357,7 @@ export default function Login() {
       const res = await fetch('/api/auth/forgot-password-send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail }),
+        body: JSON.stringify({ email: resetEmail, turnstileToken }),
       });
 
       const data = await res.json();
@@ -629,10 +635,19 @@ export default function Login() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-6 uppercase text-xs tracking-wider cursor-pointer flex items-center justify-center gap-2"
+              <div className="flex justify-center mb-4">
+                    <Turnstile 
+                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onError={(err) => console.error("Turnstile error:", err)}
+                      onExpire={() => setTurnstileToken("")}
+                      theme="dark"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || !turnstileToken}
+                    className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-6 uppercase text-xs tracking-wider cursor-pointer flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -764,10 +779,19 @@ export default function Login() {
                 </p>
               </div>
 
-              <button
-                type="submit"
-                disabled={forgotLoading}
-                className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              <div className="flex justify-center mb-4">
+                    <Turnstile 
+                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onError={(err) => console.error("Turnstile error:", err)}
+                      onExpire={() => setTurnstileToken("")}
+                      theme="dark"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading || !turnstileToken}
+                    className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {forgotLoading ? (
                   <>
@@ -829,10 +853,19 @@ export default function Login() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={forgotLoading}
-                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
+              <div className="flex justify-center mb-4">
+                    <Turnstile 
+                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onError={(err) => console.error("Turnstile error:", err)}
+                      onExpire={() => setTurnstileToken("")}
+                      theme="dark"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading || !turnstileToken}
+                    className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
               >
                 {forgotLoading ? (
                   <>
@@ -891,10 +924,19 @@ export default function Login() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={forgotLoading}
-                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
+              <div className="flex justify-center mb-4">
+                    <Turnstile 
+                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onError={(err) => console.error("Turnstile error:", err)}
+                      onExpire={() => setTurnstileToken("")}
+                      theme="dark"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading || !turnstileToken}
+                    className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
               >
                 {forgotLoading ? (
                   <>

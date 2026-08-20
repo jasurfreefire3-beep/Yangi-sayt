@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, User, Phone, ArrowLeft, Loader2, CheckCircle2, Send, ShieldCheck, KeyRound, X } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth, googleProvider, facebookAuth, facebookProvider } from '../lib/firebase';
 
@@ -34,6 +35,7 @@ export default function Register() {
   const [firebaseUid, setFirebaseUid] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const [error, setError] = useState('');
@@ -331,7 +333,7 @@ export default function Register() {
       const res = await fetch('/api/auth/phone-send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: formatted, type: 'register' }),
+        body: JSON.stringify({ phone: formatted, type: 'register', turnstileToken }),
       });
 
       const data = await res.json();
@@ -780,10 +782,19 @@ export default function Register() {
                 </p>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              <div className="flex justify-center mb-4">
+                    <Turnstile 
+                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onError={(err) => console.error("Turnstile error:", err)}
+                      onExpire={() => setTurnstileToken("")}
+                      theme="dark"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || !turnstileToken}
+                    className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {loading ? (
                   <>
@@ -845,10 +856,19 @@ export default function Register() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              <div className="flex justify-center mb-4">
+                    <Turnstile 
+                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onError={(err) => console.error("Turnstile error:", err)}
+                      onExpire={() => setTurnstileToken("")}
+                      theme="dark"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || !turnstileToken}
+                    className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {loading ? (
                   <>
@@ -945,10 +965,19 @@ export default function Register() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              <div className="flex justify-center mb-4">
+                    <Turnstile 
+                      siteKey="0x4AAAAAAAEWOjx-FejLjanh8"
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onError={(err) => console.error("Turnstile error:", err)}
+                      onExpire={() => setTurnstileToken("")}
+                      theme="dark"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || !turnstileToken}
+                    className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {loading ? (
                   <>
