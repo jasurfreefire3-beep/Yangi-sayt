@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import compression from "compression";
 import path from "path";
 import fs from "fs";
 import http from "http";
@@ -21,7 +20,6 @@ const upload = multer({ dest: "/tmp/" });
 const app = express();
 app.set("trust proxy", true);
 app.use(cors());
-app.use(compression());
 
 // Proxy Firebase Auth helper routes (/__/*) to Firebase's default auth handler
 app.use("/__", (req, res) => {
