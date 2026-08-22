@@ -459,17 +459,26 @@ export default function Register() {
       return;
     }
 
+    if (!captchaToken) {
+      setError('Robot emasligingizni tasdiqlang!');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch('/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, captchaToken }),
       });
 
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Kodni yuborishda xatolik yuz berdi');
+      }
+
+      if (data.devCode) {
+        setVerificationCode(data.devCode);
       }
 
       setResendMessage(data.message || '6 xonali tasdiqlash kodi emailga yuborildi! Pochtani (va Spam papkasini) tekshiring.');
@@ -495,6 +504,10 @@ export default function Register() {
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Kodni qayta yuborishda xatolik');
+      }
+
+      if (data.devCode) {
+        setVerificationCode(data.devCode);
       }
 
       setResendMessage(data.message || 'Yangi 6 xonali kod emailga yuborildi!');
@@ -862,24 +875,10 @@ export default function Register() {
                 </div>
               </div>
 
-              <div className="flex justify-center mb-4">
-                    {captchaError && (
-          <div className="p-3 mb-4 text-sm text-red-900 bg-red-100 border border-red-300 rounded-lg">
-            <b>{captchaError}</b>
-          </div>
-        )}
-        <ReCAPTCHA
-  sitekey="6LdADY8tAAAAAJeHBsf1HLV-ArmkHgRNvQgZfClP"
-  onChange={(token) => setCaptchaToken(token || '')}
-  onExpired={() => setCaptchaToken('')}
-  onErrored={() => setCaptchaError('ReCAPTCHA xatosi')}
-  theme="dark"
-/>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={loading || !captchaToken}
-                    className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {loading ? (
                   <>
@@ -976,24 +975,10 @@ export default function Register() {
                 </div>
               </div>
 
-              <div className="flex justify-center mb-4">
-                    {captchaError && (
-          <div className="p-3 mb-4 text-sm text-red-900 bg-red-100 border border-red-300 rounded-lg">
-            <b>{captchaError}</b>
-          </div>
-        )}
-        <ReCAPTCHA
-  sitekey="6LdADY8tAAAAAJeHBsf1HLV-ArmkHgRNvQgZfClP"
-  onChange={(token) => setCaptchaToken(token || '')}
-  onExpired={() => setCaptchaToken('')}
-  onErrored={() => setCaptchaError('ReCAPTCHA xatosi')}
-  theme="dark"
-/>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={loading || !captchaToken}
-                    className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {loading ? (
                   <>

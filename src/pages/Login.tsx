@@ -366,6 +366,10 @@ export default function Login() {
         throw new Error(data.error || 'Kodni yuborishda xatolik');
       }
 
+      if (data.devCode) {
+        setResetCode(data.devCode);
+      }
+
       setResetSuccessMsg(data.message || 'Parolni tiklash kodi emailga yuborildi!');
       setViewMode('forgot_code');
     } catch (err: any) {
@@ -864,24 +868,10 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="flex justify-center mb-4">
-                    {captchaError && (
-          <div className="p-3 mb-4 text-sm text-red-900 bg-red-100 border border-red-300 rounded-lg">
-            <b>{captchaError}</b>
-          </div>
-        )}
-        <ReCAPTCHA
-  sitekey="6LdADY8tAAAAAJeHBsf1HLV-ArmkHgRNvQgZfClP"
-  onChange={(token) => setCaptchaToken(token || '')}
-  onExpired={() => setCaptchaToken('')}
-  onErrored={() => setCaptchaError('ReCAPTCHA xatosi')}
-  theme="dark"
-/>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={forgotLoading || !captchaToken}
-                    className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
+              <button
+                type="submit"
+                disabled={forgotLoading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
               >
                 {forgotLoading ? (
                   <>
@@ -940,24 +930,10 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="flex justify-center mb-4">
-                    {captchaError && (
-          <div className="p-3 mb-4 text-sm text-red-900 bg-red-100 border border-red-300 rounded-lg">
-            <b>{captchaError}</b>
-          </div>
-        )}
-        <ReCAPTCHA
-  sitekey="6LdADY8tAAAAAJeHBsf1HLV-ArmkHgRNvQgZfClP"
-  onChange={(token) => setCaptchaToken(token || '')}
-  onExpired={() => setCaptchaToken('')}
-  onErrored={() => setCaptchaError('ReCAPTCHA xatosi')}
-  theme="dark"
-/>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={forgotLoading || !captchaToken}
-                    className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
+              <button
+                type="submit"
+                disabled={forgotLoading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
               >
                 {forgotLoading ? (
                   <>

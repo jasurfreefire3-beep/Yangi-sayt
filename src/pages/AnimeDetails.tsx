@@ -31,8 +31,8 @@ export default function AnimeDetails() {
   const [ratingStatus, setRatingStatus] = useState<string | null>(null);
   const [ratingSummary, setRatingSummary] = useState<{ average: number; total: number; distribution: Record<number, number> } | null>(null);
   const [similarAnimes, setSimilarAnimes] = useState<Anime[]>([]);
-  const [replyingCommentId, setReplyingCommentId] = useState<number | null>(null);
-  const [replyText, setReplyText] = useState<{ [key: number]: string }>({});
+  const [replyingCommentId, setReplyingCommentId] = useState<string | number | null>(null);
+  const [replyText, setReplyText] = useState<{ [key: string | number]: string }>({});
   const [adultConfirmed, setAdultConfirmed] = useState(
     () => localStorage.getItem('animem_18plus_ok') === '1'
   );
@@ -353,7 +353,7 @@ export default function AnimeDetails() {
         const data = await res.json();
         setUserRating(newRating);
         setAnime({ ...anime, rating: data.rating, rating_count: data.count });
-        fetchRatingSummary(anime.id);
+        fetchRatingSummary(Number(anime.id));
         setRatingStatus("Muvaffaqiyatli saqlandi!");
         setTimeout(() => setRatingStatus(null), 3000);
       } else {
@@ -431,7 +431,7 @@ export default function AnimeDetails() {
     }
   };
 
-  const handleLikeComment = async (commentId: number) => {
+  const handleLikeComment = async (commentId: string | number) => {
     if (!user) { setShowLoginPrompt(true); return; }
     try {
       const res = await fetch(`${API_BASE}/api/comments/${commentId}/like`, {
@@ -445,7 +445,7 @@ export default function AnimeDetails() {
     } catch(e) {}
   };
 
-  const handleDislikeComment = async (commentId: number) => {
+  const handleDislikeComment = async (commentId: string | number) => {
     if (!user) { setShowLoginPrompt(true); return; }
     try {
       const res = await fetch(`${API_BASE}/api/comments/${commentId}/dislike`, {
@@ -459,7 +459,7 @@ export default function AnimeDetails() {
     } catch(e) {}
   };
 
-  const handleReplySubmit = async (commentId: number, e: React.FormEvent) => {
+  const handleReplySubmit = async (commentId: string | number, e: React.FormEvent) => {
     e.preventDefault();
     if (!user) { setShowLoginPrompt(true); return; }
     const text = replyText[commentId];
@@ -1065,8 +1065,8 @@ export default function AnimeDetails() {
                      const avatarSrc = comment.user_avatar || comment.avatar_url;
                      const likedUsers = Array.isArray(comment.liked_users) ? comment.liked_users : [];
                      const dislikedUsers = Array.isArray(comment.disliked_users) ? comment.disliked_users : [];
-                     const isLiked = user ? likedUsers.includes(user.id) : false;
-                     const isDisliked = user ? dislikedUsers.includes(user.id) : false;
+                     const isLiked = user ? (likedUsers as any[]).includes(user.id) : false;
+                     const isDisliked = user ? (dislikedUsers as any[]).includes(user.id) : false;
                      const replies = Array.isArray(comment.replies) ? comment.replies : [];
 
                      return (

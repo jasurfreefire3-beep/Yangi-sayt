@@ -59,9 +59,16 @@ export default function NotificationPromptModal() {
       {/* Main Notification Permission Request Modal */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-3 sm:p-4">
+          <motion.div
+            key="notification-prompt-modal-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-3 sm:p-4"
+          >
             {/* Backdrop */}
             <motion.div
+              key="notification-prompt-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -71,6 +78,7 @@ export default function NotificationPromptModal() {
 
             {/* Modal Box */}
             <motion.div
+              key="notification-prompt-box"
               initial={{ opacity: 0, scale: 0.92, y: 25 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 25 }}
@@ -145,7 +153,7 @@ export default function NotificationPromptModal() {
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -153,6 +161,7 @@ export default function NotificationPromptModal() {
       <AnimatePresence>
         {showSuccessToast && (
           <motion.div
+            key="notification-success-toast"
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}

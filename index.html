@@ -95,14 +95,87 @@
         }
       })();
     </script>
+    <style>
+      html, body {
+        background-color: #0b0b0e !important;
+        color: #ffffff !important;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+      }
+      #app-preloader {
+        position: fixed;
+        inset: 0;
+        background-color: #0b0b0e;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      .preloader-glow {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #ff006a 0%, #ff529a 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 35px rgba(255, 0, 106, 0.45);
+        animation: preloaderPulse 1.6s ease-in-out infinite;
+      }
+      .preloader-spinner {
+        width: 36px;
+        height: 36px;
+        border: 3px solid rgba(255, 255, 255, 0.15);
+        border-top-color: #ff006a;
+        border-radius: 50%;
+        animation: preloaderSpin 0.75s linear infinite;
+        margin-top: 24px;
+      }
+      @keyframes preloaderPulse {
+        0%, 100% { transform: scale(1); opacity: 0.95; }
+        50% { transform: scale(1.06); opacity: 1; }
+      }
+      @keyframes preloaderSpin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body class="bg-[#0b0b0e] text-white min-h-screen">
-    <div id="root" class="min-h-screen bg-[#0b0b0e]"></div>
+    <div id="root" class="min-h-screen bg-[#0b0b0e]">
+      <div id="app-preloader">
+        <div class="preloader-glow">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </div>
+        <div class="preloader-spinner"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- Popunder Advertisement Script -->
-    <script src="https://pl29370557.effectivecpmnetwork.com/24/0f/92/240f9261ba9f8a006aec770eddd0dc4f.js"></script>
-    <!-- MyBird.io Video Overlay AD Code -->
-    <script async src="https://js.mbidadm.com/static/scripts.js" data-admpid="450955"></script>
+    <!-- Non-blocking Advertisement Scripts -->
+    <script>
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          try {
+            var s1 = document.createElement('script');
+            s1.src = 'https://pl29370557.effectivecpmnetwork.com/24/0f/92/240f9261ba9f8a006aec770eddd0dc4f.js';
+            s1.async = true;
+            document.body.appendChild(s1);
+
+            var s2 = document.createElement('script');
+            s2.src = 'https://js.mbidadm.com/static/scripts.js';
+            s2.setAttribute('data-admpid', '450955');
+            s2.async = true;
+            document.body.appendChild(s2);
+          } catch(e) {
+            console.warn('Ad script load notice:', e);
+          }
+        }, 1500);
+      });
+    </script>
   </body>
 </html>
 

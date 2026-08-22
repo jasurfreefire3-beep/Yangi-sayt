@@ -1,40 +1,48 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import MobileBottomNav from './components/MobileBottomNav';
 import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import AnimeDetails from './pages/AnimeDetails';
-import Admin from './pages/Admin';
-import Chat from './pages/Chat';
 import ChatWidget from './components/ChatWidget';
 import SpinBetterAdModal from './components/SpinBetterAdModal';
 import NotificationPromptModal from './components/NotificationPromptModal';
 import { Send, X, Instagram } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-
-// Newly added pages
-import Animelar from './pages/Animelar';
-import Mangalar from './pages/Mangalar';
-import MangaDetails from './pages/MangaDetails';
-import MangaReader from './pages/MangaReader';
-import Jadval from './pages/Jadval';
-import YangiChiqishlar from './pages/YangiChiqishlar';
-import Top100 from './pages/Top100';
-import Sevimlilar from './pages/Sevimlilar';
-import Tarix from './pages/Tarix';
-import Sozlamalar from './pages/Sozlamalar';
-import Profil from './pages/Profil';
-import Donat from './pages/Donat';
-import NotFound from './pages/NotFound';
-import SupportBot from './pages/SupportBot';
 import Footer from './components/Footer';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import TermsOfService from './pages/TermsOfService';
-import DMCA from './pages/DMCA';
-import Aloqa from './pages/Aloqa';
+
+// Code-split pages with React.lazy for instant initial bundle loading
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const AnimeDetails = lazy(() => import('./pages/AnimeDetails'));
+const Admin = lazy(() => import('./pages/Admin'));
+const Chat = lazy(() => import('./pages/Chat'));
+const Animelar = lazy(() => import('./pages/Animelar'));
+const Mangalar = lazy(() => import('./pages/Mangalar'));
+const MangaDetails = lazy(() => import('./pages/MangaDetails'));
+const MangaReader = lazy(() => import('./pages/MangaReader'));
+const Jadval = lazy(() => import('./pages/Jadval'));
+const YangiChiqishlar = lazy(() => import('./pages/YangiChiqishlar'));
+const Top100 = lazy(() => import('./pages/Top100'));
+const Sevimlilar = lazy(() => import('./pages/Sevimlilar'));
+const Tarix = lazy(() => import('./pages/Tarix'));
+const Sozlamalar = lazy(() => import('./pages/Sozlamalar'));
+const Profil = lazy(() => import('./pages/Profil'));
+const Donat = lazy(() => import('./pages/Donat'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const SupportBot = lazy(() => import('./pages/SupportBot'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const DMCA = lazy(() => import('./pages/DMCA'));
+const Aloqa = lazy(() => import('./pages/Aloqa'));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh] w-full">
+      <div className="w-10 h-10 border-3 border-[#ff006a] border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(255,0,106,0.4)]" />
+    </div>
+  );
+}
 
 export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -181,42 +189,44 @@ export default function App() {
         
         {/* Main Content Area */}
         <main className="flex-1 pt-24 md:pt-20 pb-24 md:pb-12 px-4 md:px-8 max-w-[1440px] mx-auto w-full relative z-10">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/anime/:slug" element={<AnimeDetails />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/chat" element={<Chat />} />
-            
-            {/* Added high fidelity views matching user design */}
-            <Route path="/animelar" element={<Animelar />} />
-            <Route path="/manga" element={<Mangalar />} />
-            <Route path="/mangalar" element={<Navigate to="/manga" replace />} />
-            <Route path="/manga/:id" element={<MangaDetails />} />
-            <Route path="/manga/:id/read/:chapterNumber" element={<MangaReader />} />
-            <Route path="/jadval" element={<Jadval />} />
-            <Route path="/yangi-chiqishlar" element={<YangiChiqishlar />} />
-            <Route path="/top100" element={<Top100 />} />
-            <Route path="/sevimlilar" element={<Sevimlilar />} />
-            <Route path="/tarix" element={<Tarix />} />
-            <Route path="/sozlamalar" element={<Sozlamalar />} />
-            <Route path="/profil" element={<Profil />} />
-            <Route path="/user/:id" element={<Profil />} />
-            <Route path="/donat" element={<Donat />} />
-            
-            {/* Legal & Moderation Compliance Routes */}
-            <Route path="/maxfiylik-siyosati" element={<PrivacyPolicy />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/foydalanish-shartlari" element={<TermsOfService />} />
-            <Route path="/terms" element={<TermsOfService />} />
-            <Route path="/mualliflik-huquqi" element={<DMCA />} />
-            <Route path="/dmca" element={<DMCA />} />
-            <Route path="/aloqa" element={<Aloqa />} />
-            <Route path="/contacts" element={<Aloqa />} />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/anime/:slug" element={<AnimeDetails />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/chat" element={<Chat />} />
+              
+              {/* Added high fidelity views matching user design */}
+              <Route path="/animelar" element={<Animelar />} />
+              <Route path="/manga" element={<Mangalar />} />
+              <Route path="/mangalar" element={<Navigate to="/manga" replace />} />
+              <Route path="/manga/:id" element={<MangaDetails />} />
+              <Route path="/manga/:id/read/:chapterNumber" element={<MangaReader />} />
+              <Route path="/jadval" element={<Jadval />} />
+              <Route path="/yangi-chiqishlar" element={<YangiChiqishlar />} />
+              <Route path="/top100" element={<Top100 />} />
+              <Route path="/sevimlilar" element={<Sevimlilar />} />
+              <Route path="/tarix" element={<Tarix />} />
+              <Route path="/sozlamalar" element={<Sozlamalar />} />
+              <Route path="/profil" element={<Profil />} />
+              <Route path="/user/:id" element={<Profil />} />
+              <Route path="/donat" element={<Donat />} />
+              
+              {/* Legal & Moderation Compliance Routes */}
+              <Route path="/maxfiylik-siyosati" element={<PrivacyPolicy />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/foydalanish-shartlari" element={<TermsOfService />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/mualliflik-huquqi" element={<DMCA />} />
+              <Route path="/dmca" element={<DMCA />} />
+              <Route path="/aloqa" element={<Aloqa />} />
+              <Route path="/contacts" element={<Aloqa />} />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </main>
 
         <Footer />

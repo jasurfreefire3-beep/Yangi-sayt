@@ -125,7 +125,7 @@ export async function sendDeviceNotification(payload: NotificationPayload): Prom
   }
 
   const title = payload.title || 'Animem.uz';
-  const options: NotificationOptions = {
+  const options: any = {
     body: payload.body,
     icon: payload.icon || '/icon-192.png',
     badge: payload.badge || '/icon-48.png',

@@ -8,59 +8,76 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
   const { user } = useAuth();
-  const [animes, setAnimes] = useState<Anime[]>([]);
-  const [recentComments, setRecentComments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingComments, setLoadingComments] = useState(true);
+  
+  // Instant fast-load from cache if available
+  const [animes, setAnimes] = useState<Anime[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('cached_home_animes');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [recentComments, setRecentComments] = useState<any[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('cached_home_comments');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !sessionStorage.getItem('cached_home_animes');
+    } catch {
+      return true;
+    }
+  });
+  const [loadingComments, setLoadingComments] = useState(false);
   const [bannerIndex, setBannerIndex] = useState(0);
+
   useEffect(() => {
     document.title = "Animem Uz - O'zbekistondagi eng yirik anime portali";
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchHomeData = async () => {
       const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-      let retries = 3;
-      let delay = 1000;
 
-      while (retries > 0) {
-        try {
-          const animeRes = await fetch(`${API_BASE}/api/animes`);
-          if (!animeRes.ok) {
-            throw new Error(`HTTP error ${animeRes.status}`);
+      try {
+        const [animesResult, commentsResult] = await Promise.allSettled([
+          fetch(`${API_BASE}/api/animes`).then(res => res.ok ? res.json() : Promise.reject(res.status)),
+          fetch(`${API_BASE}/api/comments/recent`).then(res => res.ok ? res.json() : Promise.reject(res.status))
+        ]);
+
+        if (isMounted) {
+          if (animesResult.status === 'fulfilled' && Array.isArray(animesResult.value)) {
+            setAnimes(animesResult.value);
+            try {
+              sessionStorage.setItem('cached_home_animes', JSON.stringify(animesResult.value));
+            } catch {}
           }
-          const animeType = animeRes.headers.get("content-type");
-          if (animeType && animeType.includes("application/json")) {
-            const animeData = await animeRes.json();
-            setAnimes(animeData);
+          if (commentsResult.status === 'fulfilled' && Array.isArray(commentsResult.value)) {
+            setRecentComments(commentsResult.value);
+            try {
+              sessionStorage.setItem('cached_home_comments', JSON.stringify(commentsResult.value));
+            } catch {}
           }
           setLoading(false);
-
-          const commentsRes = await fetch(`${API_BASE}/api/comments/recent`);
-          if (commentsRes.ok) {
-            const commentsType = commentsRes.headers.get("content-type");
-            if (commentsType && commentsType.includes("application/json")) {
-              const commentsData = await commentsRes.json();
-              setRecentComments(commentsData);
-            }
-          }
           setLoadingComments(false);
-          return; // Exit on successful fetch
-        } catch (err) {
-          retries--;
-          console.warn(`Fetch home data failed. Retries remaining: ${retries}`, err);
-          if (retries === 0) {
-            console.error("Error loading homepage data after retries:", err);
-            setLoading(false);
-            setLoadingComments(false);
-          } else {
-            await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2; // Exponential backoff
-          }
+        }
+      } catch (err) {
+        console.warn("Home fast fetch note:", err);
+        if (isMounted) {
+          setLoading(false);
+          setLoadingComments(false);
         }
       }
     };
+
     fetchHomeData();
+    return () => { isMounted = false; };
   }, []);
 
   const bannerAnimes = animes.filter(a => a.is_banner);
@@ -143,7 +160,7 @@ export default function Home() {
               <div className="md:col-span-8 space-y-6">
                 {/* Row 1: Badges */}
                 <div className="flex flex-wrap items-center gap-3">
-                  {featuredAnime.tavsiya === 1 && (
+                  {Boolean(featuredAnime.tavsiya) && (
                     <span className="px-3 py-1 bg-[#ff006a] text-white text-[11px] font-black uppercase tracking-widest rounded-sm shadow-md">
                       TAVSIYA
                     </span>

@@ -456,8 +456,8 @@ export default function MangaDetails() {
                const avatarSrc = comment.user_avatar || comment.avatar_url;
                const likedUsers = Array.isArray(comment.liked_users) ? comment.liked_users : [];
                const dislikedUsers = Array.isArray(comment.disliked_users) ? comment.disliked_users : [];
-               const isLiked = user ? likedUsers.includes(user.id) : false;
-               const isDisliked = user ? dislikedUsers.includes(user.id) : false;
+               const isLiked = user ? (likedUsers as any[]).includes(user.id) : false;
+               const isDisliked = user ? (dislikedUsers as any[]).includes(user.id) : false;
                const replies = Array.isArray(comment.replies) ? comment.replies : [];
 
                return (
