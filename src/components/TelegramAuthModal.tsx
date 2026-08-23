@@ -345,25 +345,6 @@ export default function TelegramAuthModal({
                     )}
                   </div>
 
-                  <div className="mt-4 flex items-center justify-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const botId = '8738762833';
-                        const origin = encodeURIComponent(window.location.origin);
-                        const screenW = window.screen.availWidth || window.innerWidth || 1024;
-                        const screenH = window.screen.availHeight || window.innerHeight || 768;
-                        const directUrl = `https://oauth.telegram.org/auth?bot_id=${botId}&origin=${origin}&embed=0&request_access=write`;
-                        const win = window.open(directUrl, '_blank', `width=${screenW},height=${screenH},top=0,left=0,toolbar=no,menubar=no,location=no,status=no,resizable=yes,scrollbars=yes`);
-                        if (!win) window.location.href = directUrl;
-                      }}
-                      className="inline-flex items-center gap-2 text-xs text-[#0088cc] hover:text-white bg-[#0088cc]/10 hover:bg-[#0088cc]/30 border border-[#0088cc]/30 hover:border-[#0088cc] px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer font-bold"
-                    >
-                      <ExternalLink size={13} />
-                      Brauzerni to'liq ekranda ochish
-                    </button>
-                  </div>
-
                   <div className="mt-4 p-3 rounded-xl bg-[#0088cc]/10 border border-[#0088cc]/20 text-[11px] text-white/70 text-left flex items-start gap-2.5">
                     <ShieldCheck size={16} className="text-[#0088cc] shrink-0 mt-0.5" />
                     <span>
