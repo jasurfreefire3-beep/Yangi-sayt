@@ -4568,7 +4568,9 @@ app.delete("/api/chat/clear", authenticateToken, async (req: any, res) => {
 
 
 // --- TELEGRAM LOGIN ENGINE & BOT POLLING ---
-const BOT_TOKEN = "8738762833:AAE183dMQGDTnBlmlRaHcPoZjqol8jiCNL0";
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8738762833:AAE183dMQGDTnBlmlRaHcPoZjqol8jiCNL0";
+const TELEGRAM_CLIENT_ID = process.env.TELEGRAM_CLIENT_ID || "8738762833";
+const TELEGRAM_CLIENT_SECRET = process.env.TELEGRAM_CLIENT_SECRET || "k0m7Wkrmewn5tsEsE7xZiJbjy3oehADauTSqP_N1LS8Z2-WnPzy6Rw";
 const activeSessions = new Map<string, any>(); // sessionId -> sessionData
 const chatToSession = new Map<number, string>(); // chatId -> sessionId
 
