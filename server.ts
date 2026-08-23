@@ -433,6 +433,19 @@ async function testDbConnection() {
       }
     }
 
+    // Fix existing telegram bot users who have telegram_id but auth_provider is NULL
+    try {
+      await connection.query(`
+        UPDATE users 
+        SET auth_provider = 'telegram_bot' 
+        WHERE telegram_id IS NOT NULL 
+          AND (auth_provider IS NULL OR auth_provider = '' OR auth_provider = 'telegram')
+      `);
+      console.log("Synchronized existing telegram users auth_provider to telegram_bot");
+    } catch (e) {
+      console.warn("Fix telegram users auth_provider failed:", e);
+    }
+
     // Create mangas table if not exists in MySQL
     await connection.query(`
       CREATE TABLE IF NOT EXISTS mangas (
@@ -4077,12 +4090,9 @@ app.get("/api/admin/users", authenticateToken, async (req: any, res: any) => {
       if (u.auth_provider === "telegram_widget") {
         provider = "telegram_widget";
         provider_label = "Telegram Widget";
-      } else if (u.auth_provider === "telegram_bot") {
-        provider = "telegram_bot";
-        provider_label = "Telegram Bot";
-      } else if (u.telegram_id) {
-        provider = u.auth_provider === "telegram_bot" ? "telegram_bot" : "telegram_widget";
-        provider_label = provider === "telegram_bot" ? "Telegram Bot" : "Telegram Widget";
+      } else if (u.auth_provider === "telegram_bot" || u.telegram_id) {
+        provider = u.auth_provider === "telegram_widget" ? "telegram_widget" : "telegram_bot";
+        provider_label = provider === "telegram_widget" ? "Telegram Widget" : "Telegram Bot";
       } else if (u.auth_provider === "yandex" || u.yandex_id) {
         provider = "yandex";
         provider_label = "Yandex ID";
@@ -4773,8 +4783,8 @@ async function runTelegramBot() {
 
                     try {
                       const [insertRes]: any = await dbQuery(
-                        "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
-                        [name, email, hashedPassword, role, avatar_url || null, String(tgUserId)]
+                        "INSERT INTO users (name, email, password, role, avatar_url, telegram_id, auth_provider) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        [name, email, hashedPassword, role, avatar_url || null, String(tgUserId), "telegram_bot"]
                       );
 
                       user = {
@@ -4783,10 +4793,24 @@ async function runTelegramBot() {
                         email,
                         role,
                         avatar_url: avatar_url || null,
-                        telegram_id: String(tgUserId)
+                        telegram_id: String(tgUserId),
+                        auth_provider: "telegram_bot"
                       };
                     } catch (insertErr: any) {
-                      if (insertErr.code === 'ER_DUP_ENTRY') {
+                      if (insertErr.code === 'ER_BAD_FIELD_ERROR') {
+                        const [insertRes]: any = await dbQuery(
+                          "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
+                          [name, email, hashedPassword, role, avatar_url || null, String(tgUserId)]
+                        );
+                        user = {
+                          id: insertRes.insertId,
+                          name,
+                          email,
+                          role,
+                          avatar_url: avatar_url || null,
+                          telegram_id: String(tgUserId)
+                        };
+                      } else if (insertErr.code === 'ER_DUP_ENTRY') {
                         let [existingUsers]: any = await dbQuery("SELECT * FROM users WHERE email = ?", [email]);
                         user = existingUsers[0];
                         if (!user) throw insertErr;
