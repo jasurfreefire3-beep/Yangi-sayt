@@ -9,14 +9,12 @@ interface State {
 }
 
 export default class ErrorBoundary extends Component<Props, State> {
-  // @ts-ignore
-  props: Readonly<Props>;
-  // @ts-ignore
-  state: Readonly<State> = {
-    hasError: false
-  };
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
-  public static getDerivedStateFromError(): State {
+  public static getDerivedStateFromError(_: Error): State {
     return { hasError: true };
   }
 

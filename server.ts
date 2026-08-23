@@ -5328,6 +5328,111 @@ app.post("/api/auth/telegram/widget", async (req, res) => {
   }
 });
 
+// 5. Telegram WebApp / Mini App Auth Endpoint
+app.post("/api/auth/telegram/webapp", async (req, res) => {
+  try {
+    const { user: tgUser, initData } = req.body;
+    if (!tgUser || !tgUser.id) {
+      return res.status(400).json({ error: "Telegram foydalanuvchi ma'lumotlari topilmadi!" });
+    }
+
+    const tgUserId = String(tgUser.id);
+    const firstName = (tgUser.first_name || "").trim();
+    const lastName = (tgUser.last_name || "").trim();
+    const username = (tgUser.username || "").trim();
+    let photoUrl = tgUser.photo_url || null;
+    const name = [firstName, lastName].filter(Boolean).join(" ") || username || `Telegram_${tgUserId.slice(-4)}`;
+    const email = username ? `tg_${username}@telegram.uz` : `tg_${tgUserId}@telegram.uz`;
+
+    // Check existing user in DB
+    let [users]: any = await dbQuery("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [tgUserId, email]);
+    let user = users[0];
+
+    if (!user) {
+      const randomPass = Math.random().toString(36).slice(-10);
+      const hashedPassword = await bcrypt.hash(randomPass, 10);
+      const role = (email === "mosinjonovjasurbek28@gmail.com" || email === "mosinjonovjasurbek00@gmail.com") ? "admin" : "user";
+
+      try {
+        const [insertRes]: any = await dbQuery(
+          "INSERT INTO users (name, email, password, role, avatar_url, telegram_id, auth_provider) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [name, email, hashedPassword, role, photoUrl || null, tgUserId, "telegram_webapp"]
+        );
+
+        user = {
+          id: insertRes.insertId,
+          name,
+          email,
+          role,
+          avatar_url: photoUrl || null,
+          telegram_id: tgUserId,
+          auth_provider: "telegram_webapp"
+        };
+      } catch (insertErr: any) {
+        if (insertErr.code === "ER_BAD_FIELD_ERROR") {
+          const [insertRes]: any = await dbQuery(
+            "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
+            [name, email, hashedPassword, role, photoUrl || null, tgUserId]
+          );
+          user = {
+            id: insertRes.insertId,
+            name,
+            email,
+            role,
+            avatar_url: photoUrl || null,
+            telegram_id: tgUserId
+          };
+        } else if (insertErr.code === "ER_DUP_ENTRY") {
+          let [existingUsers]: any = await dbQuery("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [tgUserId, email]);
+          user = existingUsers[0];
+          if (!user) throw insertErr;
+        } else {
+          throw insertErr;
+        }
+      }
+    } else {
+      try {
+        await dbQuery(
+          "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(?, avatar_url), name = COALESCE(NULLIF(?, ''), name), auth_provider = 'telegram_webapp' WHERE id = ?",
+          [tgUserId, photoUrl || null, name, user.id]
+        );
+      } catch {
+        await dbQuery(
+          "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(?, avatar_url), name = COALESCE(NULLIF(?, ''), name) WHERE id = ?",
+          [tgUserId, photoUrl || null, name, user.id]
+        );
+      }
+      user.telegram_id = tgUserId;
+      if (photoUrl) user.avatar_url = photoUrl;
+      if (name) user.name = name;
+    }
+
+    const userPayload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar_url: user.avatar_url,
+      telegram_id: user.telegram_id,
+    };
+    const tokenPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
+
+    res.json({
+      success: true,
+      token,
+      user: userPayload
+    });
+  } catch (err: any) {
+    console.error("Telegram webapp auth endpoint error:", err);
+    res.status(500).json({ error: err.message || "Telegram WebApp orqali kirishda xatolik" });
+  }
+});
+
 // ==================== YANDEX OAUTH ENDPOINTS ====================
 const YANDEX_CLIENT_ID = process.env.YANDEX_CLIENT_ID || "044187259630401c9d14b33ac139d976";
 const YANDEX_CLIENT_SECRET = process.env.YANDEX_CLIENT_SECRET || "d7c5406e78114ca689c95ef030db9139";
