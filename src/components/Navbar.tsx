@@ -10,7 +10,7 @@ import {
   checkAndNotifyNewContent, 
   sendDeviceNotification 
 } from '../services/notificationService';
-const logoImg = "https://i.pinimg.com/736x/17/c6/88/17c688c6242fe4c3293be182924e73a3.jpg";
+const logoImg = "https://files.catbox.moe/45hoi6.png";
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -241,7 +241,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           <img 
             src={logoImg} 
             alt="AnimeUz" 
-            className="h-[40px] min-[400px]:h-[48px] w-auto object-contain" 
+            className="h-[60px] min-[400px]:h-[72px] w-auto object-contain" 
           />
         </Link>
 

@@ -11,6 +11,8 @@ import { Send, X, Instagram } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Footer from './components/Footer';
 
+import { AdminPasscodeGate } from './components/AdminPasscodeGate';
+
 // Code-split pages with React.lazy for instant initial bundle loading
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
@@ -195,7 +197,11 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/anime/:slug" element={<AnimeDetails />} />
-              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin" element={
+                <AdminPasscodeGate>
+                  <Admin />
+                </AdminPasscodeGate>
+              } />
               <Route path="/chat" element={<Chat />} />
               
               {/* Added high fidelity views matching user design */}

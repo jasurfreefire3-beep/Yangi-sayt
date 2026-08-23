@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, Plus, Link as LinkIcon, Image, Type, AlignLeft, 
   Calendar, Building, ListOrdered, Tag, Film, Tv, Video, 
-  Trash2, Edit2, Search, X, Check, Eye, Bell, BookOpen, CreditCard, Users
+  Trash2, Edit2, Search, X, Check, Eye, Bell, BookOpen, CreditCard, Users, Radio
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Anime, GENRE_MAP, translateGenre } from '../types';
@@ -12,11 +12,12 @@ import AdminNotifications from '../components/AdminNotifications';
 import AdminMangalar from '../components/AdminMangalar';
 import AdminDonatlar from '../components/AdminDonatlar';
 import AdminUsers from '../components/AdminUsers';
+import OnlineUsersTab from '../components/OnlineUsersTab';
 
 export default function Admin() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'manage_animes' | 'add_anime' | 'episodes' | 'notifications' | 'mangas' | 'users' | 'donations'>('manage_animes');
+  const [activeTab, setActiveTab] = useState<'manage_animes' | 'add_anime' | 'episodes' | 'online_users' | 'notifications' | 'mangas' | 'users' | 'donations'>('manage_animes');
   
   // Anime Form States
   const [title, setTitle] = useState('');
@@ -69,7 +70,8 @@ export default function Admin() {
 
   // Fetch all animes on component mount
   useEffect(() => {
-    if (user?.role === 'admin') {
+    const hasPasscodeAuth = typeof window !== 'undefined' && sessionStorage.getItem('animem_admin_auth_timestamp');
+    if (user?.role === 'admin' || hasPasscodeAuth) {
       const fetchAnimes = async () => {
         try {
           const res = await fetch(`${API_BASE}/api/animes`);
@@ -85,7 +87,8 @@ export default function Admin() {
     }
   }, [user]);
 
-  if (user?.role !== 'admin') {
+  const hasPasscodeAccess = typeof window !== 'undefined' && sessionStorage.getItem('animem_admin_auth_timestamp');
+  if (user?.role !== 'admin' && !hasPasscodeAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
         <div className="w-20 h-20 bg-red-500/10 rounded flex items-center justify-center">
@@ -539,6 +542,18 @@ export default function Admin() {
         >
           <ListOrdered size={16} />
           <span>Qismlarni Boshqarish</span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('online_users');
+            setMessage({ type: '', text: '' });
+          }}
+          className={`flex items-center space-x-2 px-3 sm:px-6 py-2 sm:py-2.5 rounded-sm text-xs sm:text-sm font-bold transition-colors flex-1 justify-center ${
+            activeTab === 'online_users' ? 'bg-[#ff006a] text-white' : 'text-white/50 hover:bg-[#222] hover:text-white'
+          }`}
+        >
+          <Radio size={16} className="text-emerald-400" />
+          <span>Online Userlar</span>
         </button>
         <button
           onClick={() => {
@@ -1265,6 +1280,16 @@ export default function Admin() {
               <p className="text-xs text-white/30 mt-1 max-w-xs mx-auto">Iltimos, yuqoridagi ro'yxatdan anime yoki film tanlang.</p>
             </div>
           )}
+        </motion.div>
+      )}
+
+      {/* Tab: Online Users */}
+      {activeTab === 'online_users' && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <OnlineUsersTab />
         </motion.div>
       )}
 
