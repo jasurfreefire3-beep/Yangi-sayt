@@ -15,25 +15,26 @@ import {
   Radio
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { db } from '../lib/firebase';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 
 export interface OnlineUserItem {
   sessionId: string;
-  userId: string | null;
+  userId?: string | null;
   username: string;
-  avatar: string | null;
-  role: string;
-  email: string | null;
+  avatar?: string | null;
+  role?: string;
+  email?: string | null;
   currentPath: string;
   pageLabel: string;
-  animeTitle: string | null;
-  animeSlug: string | null;
-  episodeNumber: number | string | null;
-  poster: string | null;
+  animeTitle?: string | null;
+  animeSlug?: string | null;
+  episodeNumber?: number | string | null;
+  poster?: string | null;
   isWatching: boolean;
-  userAgent: string;
-  ip?: string;
+  userAgent?: string;
   lastSeen: number;
-  joinedAt: number;
+  joinedAt?: number;
 }
 
 export const OnlineUsersTab: React.FC = () => {
@@ -41,39 +42,91 @@ export const OnlineUsersTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'watching' | 'registered' | 'guests'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [autoRefresh] = useState(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
+  const [nowTimestamp, setNowTimestamp] = useState<number>(Date.now());
 
-  const fetchOnlineUsers = async () => {
+  // Keep a local timer running to update relative times and clean stale users
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTimestamp(Date.now());
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Real-time Firestore Listener
+  useEffect(() => {
+    setLoading(true);
+
+    let unsubscribe = () => {};
+
     try {
-      const res = await fetch('/api/presence/online-users');
-      if (res.ok) {
-        const data = await res.json();
-        setOnlineUsers(Array.isArray(data.users) ? data.users : []);
-        setLastRefreshedAt(new Date());
+      if (db) {
+        const presenceColRef = collection(db, 'presence');
+        const q = query(presenceColRef);
+
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          const currentTime = Date.now();
+          const ACTIVE_TIMEOUT_MS = 60 * 1000; // 1 minute active threshold
+
+          const users: OnlineUserItem[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const lastSeenTime = data.lastSeen || (data.updatedAt?.toMillis ? data.updatedAt.toMillis() : currentTime);
+            
+            // Only include users who sent heartbeat within the last 60 seconds
+            if (currentTime - lastSeenTime <= ACTIVE_TIMEOUT_MS) {
+              users.push({
+                sessionId: docSnap.id,
+                userId: data.userId || null,
+                username: data.username || 'Mehmon',
+                avatar: data.avatar || null,
+                role: data.role || 'guest',
+                email: data.email || null,
+                currentPath: data.currentPath || '/',
+                pageLabel: data.pageLabel || 'Bosh sahifa',
+                animeTitle: data.animeTitle || null,
+                animeSlug: data.animeSlug || null,
+                episodeNumber: data.episodeNumber || null,
+                poster: data.poster || null,
+                isWatching: Boolean(data.isWatching || data.animeTitle),
+                userAgent: data.userAgent || '',
+                lastSeen: lastSeenTime,
+                joinedAt: data.joinedAt || lastSeenTime
+              });
+            }
+          });
+
+          // Sort most recently active first
+          users.sort((a, b) => b.lastSeen - a.lastSeen);
+          setOnlineUsers(users);
+          setLastRefreshedAt(new Date());
+          setLoading(false);
+        }, (error) => {
+          console.warn('Firestore onSnapshot presence warning:', error);
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-    } catch (e) {
-      console.error("Online foydalanuvchilarni yuklashda xatolik:", e);
-    } finally {
+    } catch (err) {
+      console.warn('Error setting up presence listener:', err);
       setLoading(false);
     }
-  };
 
-  useEffect(() => {
-    fetchOnlineUsers();
-    if (!autoRefresh) return;
-    const interval = setInterval(fetchOnlineUsers, 5000); // Har 5 soniyada yangilanadi
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Calculations
-  const totalCount = onlineUsers.length;
-  const watchingCount = onlineUsers.filter(u => u.isWatching || u.animeTitle).length;
-  const registeredCount = onlineUsers.filter(u => u.userId && u.role !== 'guest').length;
-  const guestCount = totalCount - registeredCount;
+  const activeUsers = onlineUsers.filter(u => nowTimestamp - u.lastSeen <= 60000);
+  const totalCount = activeUsers.length;
+  const watchingCount = activeUsers.filter(u => u.isWatching || u.animeTitle).length;
+  const registeredCount = activeUsers.filter(u => u.userId && u.role !== 'guest').length;
+  const guestCount = Math.max(0, totalCount - registeredCount);
 
   // Filtered users
-  const filteredUsers = onlineUsers.filter(u => {
+  const filteredUsers = activeUsers.filter(u => {
     if (filter === 'watching' && !(u.isWatching || u.animeTitle)) return false;
     if (filter === 'registered' && (!u.userId || u.role === 'guest')) return false;
     if (filter === 'guests' && (u.userId && u.role !== 'guest')) return false;
@@ -103,8 +156,8 @@ export const OnlineUsersTab: React.FC = () => {
   };
 
   const formatAgo = (timestamp: number) => {
-    const sec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-    if (sec < 10) return "Hozirgina";
+    const sec = Math.max(0, Math.floor((nowTimestamp - timestamp) / 1000));
+    if (sec < 6) return "Hozirgina";
     if (sec < 60) return `${sec} soniya oldin`;
     const min = Math.floor(sec / 60);
     return `${min} daqiqa oldin`;
@@ -184,7 +237,7 @@ export const OnlineUsersTab: React.FC = () => {
           />
         </div>
 
-        {/* Filters & Refresh */}
+        {/* Filters */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex bg-[#181818] border border-[#222] rounded-sm p-1 text-xs">
             <button
@@ -222,13 +275,12 @@ export const OnlineUsersTab: React.FC = () => {
           </div>
 
           <button
-            onClick={() => fetchOnlineUsers()}
-            disabled={loading}
+            onClick={() => setLastRefreshedAt(new Date())}
             className="p-2.5 bg-[#181818] hover:bg-white/10 border border-[#222] rounded-sm text-white/80 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
             title="Yangilash"
           >
-            <RefreshCw size={14} className={loading ? "animate-spin text-[#ff006a]" : ""} />
-            <span className="hidden sm:inline">Yangilash</span>
+            <RefreshCw size={14} className="text-[#ff006a]" />
+            <span className="hidden sm:inline">Jonli</span>
           </button>
         </div>
       </div>
@@ -243,7 +295,7 @@ export const OnlineUsersTab: React.FC = () => {
             </h3>
           </div>
           <span className="text-[11px] text-white/40 font-mono">
-            Oxirgi yangilanish: {lastRefreshedAt.toLocaleTimeString()}
+            Jonli sinxronlanmoqda: {lastRefreshedAt.toLocaleTimeString()}
           </span>
         </div>
 
@@ -255,8 +307,8 @@ export const OnlineUsersTab: React.FC = () => {
         ) : filteredUsers.length === 0 ? (
           <div className="p-12 text-center text-white/40 space-y-2">
             <Users size={32} className="mx-auto opacity-30" />
-            <p className="text-sm font-semibold">Hech qanday faol foydalanuvchi topilmadi</p>
-            <p className="text-xs text-white/30">Hozirda tanlangan filtr bo'yicha ma'lumot yo'q</p>
+            <p className="text-sm font-semibold">Faol foydalanuvchilar mavjud</p>
+            <p className="text-xs text-white/30">Hozirda tanlangan filtr bo'yicha ma'lumot topilmadi</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

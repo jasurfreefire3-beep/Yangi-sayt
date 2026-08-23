@@ -8,6 +8,7 @@ import VideoPlayer from '../components/VideoPlayer';
 import AgeGate from '../components/AgeGate';
 import AdBanner728x90 from '../components/AdBanner728x90';
 import NativeBannerAd from '../components/NativeBannerAd';
+import { setActiveAnimeViewing } from '../hooks/usePresenceTracker';
 
 export default function AnimeDetails() {
   const params = useParams();
@@ -133,6 +134,22 @@ export default function AnimeDetails() {
     fetchAllDetails();
     window.scrollTo(0, 0);
   }, [slug, user]);
+
+  // Real-time tracking of active anime and episode in Presence Tracker
+  useEffect(() => {
+    if (anime) {
+      setActiveAnimeViewing({
+        animeTitle: anime.title,
+        animeSlug: toSlug(anime.title || '') || slug,
+        episodeNumber: activeEpisode,
+        poster: anime.image_url || anime.banner_url
+      });
+    }
+
+    return () => {
+      setActiveAnimeViewing(null);
+    };
+  }, [anime, activeEpisode, slug]);
 
   useEffect(() => {
     if (anime) {

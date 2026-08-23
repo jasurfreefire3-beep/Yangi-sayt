@@ -114,44 +114,22 @@
         z-index: 99999;
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       }
-      .preloader-glow {
-        width: 72px;
-        height: 72px;
-        border-radius: 18px;
-        background: linear-gradient(135deg, #ff006a 0%, #ff529a 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 0 35px rgba(255, 0, 106, 0.45);
-        animation: preloaderPulse 1.6s ease-in-out infinite;
-      }
-      .preloader-spinner {
-        width: 36px;
-        height: 36px;
-        border: 3px solid rgba(255, 255, 255, 0.15);
-        border-top-color: #ff006a;
-        border-radius: 50%;
-        animation: preloaderSpin 0.75s linear infinite;
-        margin-top: 24px;
-      }
-      @keyframes preloaderPulse {
-        0%, 100% { transform: scale(1); opacity: 0.95; }
-        50% { transform: scale(1.06); opacity: 1; }
-      }
-      @keyframes preloaderSpin {
-        to { transform: rotate(360deg); }
+      .preloader-gif {
+        width: 140px;
+        height: 140px;
+        object-fit: contain;
+        filter: drop-shadow(0 0 16px rgba(255, 0, 106, 0.25));
       }
     </style>
   </head>
   <body class="bg-[#0b0b0e] text-white min-h-screen">
     <div id="root" class="min-h-screen bg-[#0b0b0e]">
       <div id="app-preloader">
-        <div class="preloader-glow">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-        </div>
-        <div class="preloader-spinner"></div>
+        <img 
+          src="https://kitsunee.moe/loader.gif" 
+          alt="Yuklanmoqda..." 
+          class="preloader-gif" 
+        />
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

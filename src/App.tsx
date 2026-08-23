@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Footer from './components/Footer';
 
 import { AdminPasscodeGate } from './components/AdminPasscodeGate';
+import { usePresenceTracker } from './hooks/usePresenceTracker';
 
 // Code-split pages with React.lazy for instant initial bundle loading
 const Login = lazy(() => import('./pages/Login'));
@@ -41,12 +42,17 @@ const Aloqa = lazy(() => import('./pages/Aloqa'));
 function PageLoader() {
   return (
     <div className="flex items-center justify-center min-h-[50vh] w-full">
-      <div className="w-10 h-10 border-3 border-[#ff006a] border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(255,0,106,0.4)]" />
+      <img 
+        src="https://kitsunee.moe/loader.gif" 
+        alt="Yuklanmoqda..." 
+        className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-[0_0_15px_rgba(255,0,106,0.25)]" 
+      />
     </div>
   );
 }
 
 export default function App() {
+  usePresenceTracker();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showTelegramBanner, setShowTelegramBanner] = useState(true);
   
