@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth, googleProvider, facebookAuth, facebookProvider } from '../lib/firebase';
+import TelegramAuthModal from '../components/TelegramAuthModal';
 
 declare global {
   interface Window {
@@ -88,11 +89,8 @@ export default function Register() {
     return () => { isMounted = false; };
   }, [login, navigate]);
 
-  // Telegram Login States
+  // Telegram Login State
   const [showTelegramModal, setShowTelegramModal] = useState(false);
-  const [telegramSessionId, setTelegramSessionId] = useState('');
-  const [telegramStatus, setTelegramStatus] = useState<'pending' | 'pending_phone' | 'authorized' | 'expired' | ''>('');
-  const [telegramProgress, setTelegramProgress] = useState(1);
 
   // Listen for OAuth popup callbacks
   useEffect(() => {
@@ -153,66 +151,9 @@ export default function Register() {
     }
   };
 
-  // Poll Telegram auth session status
-  useEffect(() => {
-    if (!telegramSessionId || showTelegramModal === false || telegramStatus === 'authorized') return;
-
-    let isMounted = true;
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/auth/telegram/status/${telegramSessionId}`);
-        const data = await res.json();
-        
-        if (!isMounted) return;
-
-        if (data.status) {
-          setTelegramStatus(data.status);
-          if (data.status === 'pending_phone') {
-            setTelegramProgress(2);
-          } else if (data.status === 'authorized') {
-            setTelegramProgress(3);
-            clearInterval(interval);
-            
-            setTimeout(() => {
-              login(data.token, data.user);
-              setShowTelegramModal(false);
-              navigate('/');
-            }, 2500);
-          } else if (data.status === 'expired') {
-            setError('Telegram avtorizatsiya vaqti tugadi.');
-            setShowTelegramModal(false);
-            clearInterval(interval);
-          }
-        }
-      } catch (err) {
-        console.error('Error polling Telegram session:', err);
-      }
-    }, 2000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [telegramSessionId, showTelegramModal, telegramStatus, login, navigate]);
-
-  const handleTelegramLoginStart = async () => {
-    try {
-      setError('');
-      setTelegramProgress(1);
-      setTelegramStatus('pending');
-      
-      const res = await fetch('/api/auth/telegram/session');
-      const data = await res.json();
-      
-      if (data.sessionId) {
-        setTelegramSessionId(data.sessionId);
-        setShowTelegramModal(true);
-      } else {
-        throw new Error('Telegram seansini yaratib bo\'lmadi');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Telegram orqali kirishni boshlashda xatolik');
-    }
+  const handleTelegramLoginStart = () => {
+    setError('');
+    setShowTelegramModal(true);
   };
 
   const handleGoogleLogin = async () => {
@@ -1002,141 +943,15 @@ export default function Register() {
         </div>
       </motion.div>
 
-      {/* Telegram Verification Modal Overlay */}
-      {showTelegramModal && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="w-full max-w-md bg-[#0e0e0e] border border-white/10 rounded-lg overflow-hidden shadow-2xl relative"
-          >
-            <button
-              onClick={() => setShowTelegramModal(false)}
-              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-full cursor-pointer z-10"
-            >
-              <X size={16} />
-            </button>
-
-            {telegramProgress < 3 ? (
-              <div className="p-6 sm:p-8">
-                <div className="text-center mb-6">
-                  <div className="w-12 h-12 bg-[#0088cc]/10 rounded-full flex items-center justify-center mx-auto mb-3 border border-[#0088cc]/20">
-                    <svg viewBox="0 0 24 24" className="w-6 h-6 text-[#0088cc] fill-current">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.97.53-1.34.52-.41-.01-1.21-.23-1.8-.42-.73-.24-1.32-.37-1.27-.78.02-.21.31-.43.87-.67 3.42-1.49 5.71-2.48 6.86-2.96 3.27-1.37 3.95-1.61 4.4-.1.01.03.02.05.02.08.01.12.01.25-.01.37z" />
-                    </svg>
-                  </div>
-                  <h2 className="text-lg font-black text-white uppercase tracking-wider">Telegram orqali kirish</h2>
-                  <p className="text-white/40 text-xs mt-1">Xavfsiz va tezkor avtorizatsiya tizimi</p>
-                </div>
-
-                <div className="flex justify-center items-center gap-2 mb-8">
-                  <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold border transition-colors ${
-                    telegramProgress === 1 
-                      ? 'bg-[#0088cc]/10 border-[#0088cc]/30 text-[#0088cc]' 
-                      : 'bg-white/5 border-white/10 text-white/40'
-                  }`}>
-                    <span className="w-4 h-4 rounded-full bg-[#0088cc] text-white flex items-center justify-center text-[9px] font-black">1</span>
-                    Botga o'tish
-                  </div>
-                  <div className="w-4 h-[1px] bg-white/10"></div>
-                  <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold border transition-colors ${
-                    telegramProgress === 2 
-                      ? 'bg-[#0088cc]/10 border-[#0088cc]/30 text-[#0088cc]' 
-                      : 'bg-white/5 border-white/10 text-white/40'
-                  }`}>
-                    <span className="w-4 h-4 rounded-full bg-[#0088cc] text-white flex items-center justify-center text-[9px] font-black">2</span>
-                    Kontaktni yuborish
-                  </div>
-                </div>
-
-                {telegramProgress === 1 ? (
-                  <div className="space-y-4 text-center">
-                    <p className="text-xs text-white/70 leading-relaxed max-w-xs mx-auto">
-                      Quyidagi tugmani bosing va Telegram botimizni ochib, pastda <strong className="text-[#0088cc]">"START"</strong> (Boshlash) tugmasini bosing:
-                    </p>
-                    <div className="py-2">
-                      <a
-                        href={`https://t.me/Animem_register_bot?start=${telegramSessionId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-sky-400 hover:from-blue-600 hover:to-sky-500 text-white font-bold rounded-sm shadow-lg shadow-blue-500/20 transition-all duration-300 hover:scale-[1.03] uppercase text-[10px] tracking-wider cursor-pointer"
-                      >
-                        <Send size={12} />
-                        Telegram Botga o'tish
-                      </a>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4 text-center">
-                    <p className="text-xs text-white/70 leading-relaxed max-w-xs mx-auto">
-                      Botda paydo bo'lgan <strong className="text-green-400">"📱 Telefon raqamni yuborish"</strong> tugmasini bosing.
-                    </p>
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 rounded-sm text-xs font-bold">
-                      <Loader2 size={12} className="animate-spin" />
-                      Telefon raqami kutilmoqda...
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
-                <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: [1, 1.15, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute inset-0 bg-green-500/10 rounded-full"
-                  />
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                    className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 border border-green-400"
-                  >
-                    <motion.svg
-                      viewBox="0 0 24 24"
-                      className="w-8 h-8 text-white fill-none stroke-current"
-                      strokeWidth={3}
-                      initial={{ strokeDasharray: 100, strokeDashoffset: 100 }}
-                      animate={{ strokeDashoffset: 0 }}
-                      transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </motion.svg>
-                  </motion.div>
-                </div>
-
-                <motion.h2
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="text-xl font-black text-white uppercase tracking-wider mb-2"
-                >
-                  Muvaffaqiyatli!
-                </motion.h2>
-
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.6 }}
-                  className="text-xs text-green-400 font-bold max-w-sm leading-relaxed"
-                >
-                  Siz saytga muvaffaqiyatli kirdingiz! 🎉
-                </motion.p>
-
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.8 }}
-                  className="text-[10px] text-white/30 mt-6 animate-pulse"
-                >
-                  Bosh sahifaga yo'naltirilmoqda...
-                </motion.p>
-              </div>
-            )}
-          </motion.div>
-        </div>
-      )}
+      {/* Telegram Auth Modal */}
+      <TelegramAuthModal
+        isOpen={showTelegramModal}
+        onClose={() => setShowTelegramModal(false)}
+        onSuccess={(token, user) => {
+          login(token, user);
+          navigate('/');
+        }}
+      />
     </div>
   );
 }
