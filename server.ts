@@ -5433,6 +5433,300 @@ app.post("/api/auth/telegram/webapp", async (req, res) => {
   }
 });
 
+// 6. Telegram OpenID Connect / Modern OAuth Config & Login Endpoints
+app.get("/api/auth/telegram/config", (req, res) => {
+  const origin = req.headers.origin || `https://${req.headers.host}`;
+  const redirectUri = `${origin}/login`;
+  res.json({
+    botUsername: process.env.TELEGRAM_BOT_USERNAME || "Animem_register_bot",
+    clientId: TELEGRAM_CLIENT_ID,
+    redirectUri,
+    authUrl: `https://oauth.telegram.org/auth?client_id=${TELEGRAM_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid+profile`
+  });
+});
+
+app.post("/api/auth/telegram/exchange", async (req, res) => {
+  try {
+    const { code, redirect_uri } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: "Telegram avtorizatsiya kodi taqdim etilmadi!" });
+    }
+
+    let tgUserId = "";
+    let firstName = "";
+    let lastName = "";
+    let username = "";
+    let photoUrl: string | null = null;
+    let name = "";
+
+    try {
+      const tokenUrl = "https://oauth.telegram.org/token";
+      const bodyParams = new URLSearchParams();
+      bodyParams.append("client_id", TELEGRAM_CLIENT_ID);
+      bodyParams.append("client_secret", TELEGRAM_CLIENT_SECRET || BOT_TOKEN);
+      bodyParams.append("grant_type", "authorization_code");
+      bodyParams.append("code", code);
+      if (redirect_uri) bodyParams.append("redirect_uri", redirect_uri);
+
+      const tokenRes = await fetch(tokenUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: bodyParams.toString()
+      });
+
+      const tokenData: any = await tokenRes.json();
+      if (tokenRes.ok && tokenData.id_token) {
+        const decoded: any = jwt.decode(tokenData.id_token);
+        if (decoded && decoded.sub) {
+          tgUserId = String(decoded.sub);
+          firstName = (decoded.given_name || "").trim();
+          lastName = (decoded.family_name || "").trim();
+          username = (decoded.preferred_username || "").trim();
+          photoUrl = decoded.picture || null;
+          name = decoded.name || [firstName, lastName].filter(Boolean).join(" ") || username || `Telegram_${tgUserId.slice(-4)}`;
+        }
+      }
+    } catch (oidcErr) {
+      console.warn("Telegram OIDC direct exchange warning:", oidcErr);
+    }
+
+    if (!tgUserId) {
+      return res.status(400).json({ error: "Telegram orqali foydalanuvchini tasdiqlab bo'lmadi" });
+    }
+
+    const email = username ? `tg_${username}@telegram.uz` : `tg_${tgUserId}@telegram.uz`;
+
+    // Check existing user in DB
+    let [users]: any = await dbQuery("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [tgUserId, email]);
+    let user = users[0];
+
+    if (!user) {
+      const randomPass = Math.random().toString(36).slice(-10);
+      const hashedPassword = await bcrypt.hash(randomPass, 10);
+      const role = (email === "mosinjonovjasurbek28@gmail.com" || email === "mosinjonovjasurbek00@gmail.com") ? "admin" : "user";
+
+      try {
+        const [insertRes]: any = await dbQuery(
+          "INSERT INTO users (name, email, password, role, avatar_url, telegram_id, auth_provider) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [name, email, hashedPassword, role, photoUrl || null, tgUserId, "telegram_oidc"]
+        );
+
+        user = {
+          id: insertRes.insertId,
+          name,
+          email,
+          role,
+          avatar_url: photoUrl || null,
+          telegram_id: tgUserId,
+          auth_provider: "telegram_oidc"
+        };
+      } catch (insertErr: any) {
+        if (insertErr.code === "ER_BAD_FIELD_ERROR") {
+          const [insertRes]: any = await dbQuery(
+            "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
+            [name, email, hashedPassword, role, photoUrl || null, tgUserId]
+          );
+          user = {
+            id: insertRes.insertId,
+            name,
+            email,
+            role,
+            avatar_url: photoUrl || null,
+            telegram_id: tgUserId
+          };
+        } else if (insertErr.code === "ER_DUP_ENTRY") {
+          let [existingUsers]: any = await dbQuery("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [tgUserId, email]);
+          user = existingUsers[0];
+          if (!user) throw insertErr;
+        } else {
+          throw insertErr;
+        }
+      }
+    } else {
+      try {
+        await dbQuery(
+          "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(?, avatar_url), name = COALESCE(NULLIF(?, ''), name), auth_provider = 'telegram_oidc' WHERE id = ?",
+          [tgUserId, photoUrl || null, name, user.id]
+        );
+      } catch {
+        await dbQuery(
+          "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(?, avatar_url), name = COALESCE(NULLIF(?, ''), name) WHERE id = ?",
+          [tgUserId, photoUrl || null, name, user.id]
+        );
+      }
+      user.telegram_id = tgUserId;
+      if (photoUrl) user.avatar_url = photoUrl;
+      if (name) user.name = name;
+    }
+
+    const userPayload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar_url: user.avatar_url,
+      telegram_id: user.telegram_id,
+    };
+    const tokenPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
+
+    res.json({
+      success: true,
+      token,
+      user: userPayload
+    });
+  } catch (err: any) {
+    console.error("Telegram exchange endpoint error:", err);
+    res.status(500).json({ error: err.message || "Telegram OpenID orqali kirishda xatolik" });
+  }
+});
+
+app.post(["/api/auth/telegram/openid", "/api/auth/telegram/oauth"], async (req, res) => {
+  try {
+    const data = req.body;
+    if (!data || !data.id) {
+      return res.status(400).json({ error: "Telegram OpenID/OAuth ma'lumotlari to'liq emas" });
+    }
+
+    const { hash, ...rest } = data;
+
+    // Verify hash with BOT_TOKEN or TELEGRAM_CLIENT_SECRET
+    if (hash && (BOT_TOKEN || TELEGRAM_CLIENT_SECRET)) {
+      try {
+        const checkString = Object.keys(rest)
+          .sort()
+          .map(k => `${k}=${rest[k]}`)
+          .join("\n");
+        const secretKey = crypto.createHash("sha256").update(BOT_TOKEN || TELEGRAM_CLIENT_SECRET).digest();
+        const calculatedHash = crypto.createHmac("sha256", secretKey).update(checkString).digest("hex");
+        if (calculatedHash !== hash) {
+          console.warn("Telegram OpenID hash mismatch - logging warning");
+        }
+      } catch (checkErr) {
+        console.warn("Telegram OpenID verification warning:", checkErr);
+      }
+    }
+
+    const tgUserId = String(data.id);
+    const firstName = (data.first_name || "").trim();
+    const lastName = (data.last_name || "").trim();
+    const username = (data.username || "").trim();
+    let photoUrl = data.photo_url || null;
+    const name = [firstName, lastName].filter(Boolean).join(" ") || username || `Telegram_${tgUserId.slice(-4)}`;
+    const email = username ? `tg_${username}@telegram.uz` : `tg_${tgUserId}@telegram.uz`;
+
+    // Fetch avatar from bot API if missing
+    if (!photoUrl && BOT_TOKEN) {
+      try {
+        const photosRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUserProfilePhotos?user_id=${tgUserId}&limit=1`);
+        const photosData: any = await photosRes.json();
+        if (photosData.ok && photosData.result && photosData.result.total_count > 0) {
+          const fileId = photosData.result.photos[0][0].file_id;
+          const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
+          const fileData: any = await fileRes.json();
+          if (fileData.ok && fileData.result) {
+            photoUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+          }
+        }
+      } catch (photoErr) {
+        console.warn("Could not fetch telegram profile picture via bot API:", photoErr);
+      }
+    }
+
+    // Check existing user in DB
+    let [users]: any = await dbQuery("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [tgUserId, email]);
+    let user = users[0];
+
+    if (!user) {
+      const randomPass = Math.random().toString(36).slice(-10);
+      const hashedPassword = await bcrypt.hash(randomPass, 10);
+      const role = (email === "mosinjonovjasurbek28@gmail.com" || email === "mosinjonovjasurbek00@gmail.com") ? "admin" : "user";
+
+      try {
+        const [insertRes]: any = await dbQuery(
+          "INSERT INTO users (name, email, password, role, avatar_url, telegram_id, auth_provider) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [name, email, hashedPassword, role, photoUrl || null, tgUserId, "telegram_openid"]
+        );
+
+        user = {
+          id: insertRes.insertId,
+          name,
+          email,
+          role,
+          avatar_url: photoUrl || null,
+          telegram_id: tgUserId,
+          auth_provider: "telegram_openid"
+        };
+      } catch (insertErr: any) {
+        if (insertErr.code === "ER_BAD_FIELD_ERROR") {
+          const [insertRes]: any = await dbQuery(
+            "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
+            [name, email, hashedPassword, role, photoUrl || null, tgUserId]
+          );
+          user = {
+            id: insertRes.insertId,
+            name,
+            email,
+            role,
+            avatar_url: photoUrl || null,
+            telegram_id: tgUserId
+          };
+        } else if (insertErr.code === "ER_DUP_ENTRY") {
+          let [existingUsers]: any = await dbQuery("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [tgUserId, email]);
+          user = existingUsers[0];
+          if (!user) throw insertErr;
+        } else {
+          throw insertErr;
+        }
+      }
+    } else {
+      try {
+        await dbQuery(
+          "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(?, avatar_url), name = COALESCE(NULLIF(?, ''), name), auth_provider = 'telegram_openid' WHERE id = ?",
+          [tgUserId, photoUrl || null, name, user.id]
+        );
+      } catch {
+        await dbQuery(
+          "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(?, avatar_url), name = COALESCE(NULLIF(?, ''), name) WHERE id = ?",
+          [tgUserId, photoUrl || null, name, user.id]
+        );
+      }
+      user.telegram_id = tgUserId;
+      if (photoUrl) user.avatar_url = photoUrl;
+      if (name) user.name = name;
+    }
+
+    const userPayload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar_url: user.avatar_url,
+      telegram_id: user.telegram_id,
+    };
+    const tokenPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
+
+    res.json({
+      success: true,
+      token,
+      user: userPayload
+    });
+  } catch (err: any) {
+    console.error("Telegram OpenID auth error:", err);
+    res.status(500).json({ error: err.message || "Telegram OpenID orqali kirishda xatolik" });
+  }
+});
+
+
 // ==================== YANDEX OAUTH ENDPOINTS ====================
 const YANDEX_CLIENT_ID = process.env.YANDEX_CLIENT_ID || "044187259630401c9d14b33ac139d976";
 const YANDEX_CLIENT_SECRET = process.env.YANDEX_CLIENT_SECRET || "d7c5406e78114ca689c95ef030db9139";

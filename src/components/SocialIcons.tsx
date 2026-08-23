@@ -7,10 +7,10 @@ export interface SocialIconProps {
 
 // Telegram
 export const TelegramIcon: React.FC<SocialIconProps> = ({ className = "w-10 h-10", size = 40 }) => (
-  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
-    <circle cx="24" cy="24" r="24" fill="#0088CC" />
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <circle cx="12" cy="12" r="12" fill="#0088CC" />
     <path
-      d="M34.5 13.5L10.5 22.8C9.5 23.2 9.5 24.3 10.4 24.6L16.5 26.5L30.7 17.6C31.4 17.2 32 17.4 31.4 17.9L19.9 28.3L19.5 34.1C20.1 34.1 20.4 33.8 20.7 33.5L23.6 30.7L29.6 35.1C30.7 35.7 31.5 35.4 31.8 34.1L35.7 15.6C36.1 14 35.1 13.3 34.5 13.5Z"
+      d="M17.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.197 1.006.128.832.946z"
       fill="white"
     />
   </svg>

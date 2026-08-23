@@ -88,12 +88,43 @@ export default function Login() {
   // Telegram Login State
   const [showTelegramModal, setShowTelegramModal] = useState(false);
 
-  // Listen for OAuth popup callbacks
+  // Listen for OAuth popup callbacks & handle Telegram OpenID redirect query params
   useEffect(() => {
+    // Check if redirected from Telegram OpenID Connect
+    const urlParams = new URLSearchParams(window.location.search);
+    const tgCode = urlParams.get('code');
+    if (tgCode && window.location.pathname === '/login') {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+      
+      setLoading(true);
+      fetch('/api/auth/telegram/exchange', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: tgCode,
+          redirect_uri: window.location.origin + '/login'
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.token && data.user) {
+          login(data.token, data.user);
+          navigate('/');
+        } else {
+          setError(data.error || "Telegram orqali kirishda xatolik yuz berdi");
+        }
+      })
+      .catch(err => {
+        setError(err.message || "Telegram orqali kirishda xatolik");
+      })
+      .finally(() => setLoading(false));
+    }
+
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
 
-      if (event.data?.type === 'YANDEX_AUTH_SUCCESS' || event.data?.type === 'DISCORD_AUTH_SUCCESS') {
+      if (event.data?.type === 'YANDEX_AUTH_SUCCESS' || event.data?.type === 'DISCORD_AUTH_SUCCESS' || event.data?.type === 'TELEGRAM_AUTH_SUCCESS') {
         const { token: userToken, user: authUser } = event.data;
         if (userToken && authUser) {
           login(userToken, authUser);
@@ -116,17 +147,7 @@ export default function Login() {
       const data = await res.json();
 
       if (data.url) {
-        const screenW = window.screen.availWidth || window.innerWidth || 1024;
-        const screenH = window.screen.availHeight || window.innerHeight || 768;
-        const authWindow = window.open(
-          data.url,
-          'yandex_oauth_popup',
-          `width=${screenW},height=${screenH},top=0,left=0,toolbar=no,menubar=no,location=no,status=no,resizable=yes,scrollbars=yes`
-        );
-
-        if (!authWindow) {
-          window.location.href = data.url;
-        }
+        window.location.href = data.url;
       } else {
         throw new Error('Yandex avtorizatsiya havolasini olib bo\'lmadi');
       }
@@ -142,14 +163,7 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || 'Discord avtorizatsiya havolasi olinmadi');
 
-      const screenW = window.screen.availWidth || window.innerWidth || 1024;
-      const screenH = window.screen.availHeight || window.innerHeight || 768;
-      const authWindow = window.open(
-        data.url,
-        'discord_oauth_popup',
-        `width=${screenW},height=${screenH},top=0,left=0,toolbar=no,menubar=no,location=no,status=no,resizable=yes,scrollbars=yes`
-      );
-      if (!authWindow) window.location.href = data.url;
+      window.location.href = data.url;
     } catch (err: any) {
       setError(err.message || 'Discord orqali kirishda xatolik');
     }
@@ -668,10 +682,15 @@ export default function Login() {
               <button
                 type="button"
                 onClick={handleTelegramLoginStart}
-                className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-3 flex items-center justify-center gap-3 cursor-pointer"
+                className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-3 flex items-center justify-center gap-3 cursor-pointer relative shadow-lg shadow-[#0088cc]/20"
               >
+                <div className="absolute top-2 right-2">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                    Tavsiya
+                  </span>
+                </div>
                 <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.97.53-1.34.52-.41-.01-1.21-.23-1.8-.42-.73-.24-1.32-.37-1.27-.78.02-.21.31-.43.87-.67 3.42-1.49 5.71-2.48 6.86-2.96 3.27-1.37 3.95-1.61 4.4-.1.01.03.02.05.02.08.01.12.01.25-.01.37z" />
+                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.197 1.006.128.832.946z" />
                 </svg>
                 Telegram bilan kirish
               </button>
