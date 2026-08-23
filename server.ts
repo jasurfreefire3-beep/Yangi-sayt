@@ -399,6 +399,7 @@ async function testDbConnection() {
 
     // Ensure profile & social columns exist in users table
     const profileColumns = [
+      { name: "auth_provider", type: "VARCHAR(50) DEFAULT NULL" },
       { name: "bio", type: "TEXT DEFAULT NULL" },
       { name: "banner_url", type: "MEDIUMTEXT DEFAULT NULL" },
       { name: "telegram", type: "VARCHAR(255) DEFAULT NULL" },
@@ -4056,34 +4057,45 @@ app.get("/api/admin/users", authenticateToken, async (req: any, res: any) => {
 
     let users: any[] = [];
     try {
-      const [rows]: any = await dbQuery("SELECT id, name, email, phone, role, avatar_url, telegram_id, yandex_id, discord_id, facebook_id, created_at FROM users ORDER BY id DESC");
+      const [rows]: any = await dbQuery("SELECT id, name, email, phone, role, avatar_url, telegram_id, yandex_id, discord_id, facebook_id, auth_provider, created_at FROM users ORDER BY id DESC");
       users = rows || [];
     } catch (dbErr) {
-      console.warn("DB Query for users failed, falling back to local store:", dbErr);
-      const store = loadLocalStore();
-      users = store.users || [];
+      try {
+        const [rows]: any = await dbQuery("SELECT id, name, email, phone, role, avatar_url, telegram_id, yandex_id, discord_id, facebook_id, created_at FROM users ORDER BY id DESC");
+        users = rows || [];
+      } catch (innerDbErr) {
+        console.warn("DB Query for users failed, falling back to local store:", innerDbErr);
+        const store = loadLocalStore();
+        users = store.users || [];
+      }
     }
 
     const processedUsers = users.map((u: any) => {
-      let provider = "email";
+      let provider = u.auth_provider || "email";
       let provider_label = "Email / Parol";
 
-      if (u.telegram_id) {
-        provider = "telegram";
-        provider_label = "Telegram";
-      } else if (u.yandex_id) {
+      if (u.auth_provider === "telegram_widget") {
+        provider = "telegram_widget";
+        provider_label = "Telegram Widget";
+      } else if (u.auth_provider === "telegram_bot") {
+        provider = "telegram_bot";
+        provider_label = "Telegram Bot";
+      } else if (u.telegram_id) {
+        provider = u.auth_provider === "telegram_bot" ? "telegram_bot" : "telegram_widget";
+        provider_label = provider === "telegram_bot" ? "Telegram Bot" : "Telegram Widget";
+      } else if (u.auth_provider === "yandex" || u.yandex_id) {
         provider = "yandex";
         provider_label = "Yandex ID";
-      } else if (u.discord_id) {
+      } else if (u.auth_provider === "discord" || u.discord_id) {
         provider = "discord";
         provider_label = "Discord";
-      } else if (u.facebook_id) {
+      } else if (u.auth_provider === "facebook" || u.facebook_id) {
         provider = "facebook";
         provider_label = "Facebook";
-      } else if (u.email && u.email.toLowerCase().endsWith("@gmail.com")) {
+      } else if (u.auth_provider === "google" || (u.email && u.email.toLowerCase().endsWith("@gmail.com"))) {
         provider = "google";
         provider_label = "Google Email";
-      } else if (u.phone) {
+      } else if (u.auth_provider === "phone" || u.phone) {
         provider = "phone";
         provider_label = "Telefon (+SMS)";
       }
@@ -4099,6 +4111,7 @@ app.get("/api/admin/users", authenticateToken, async (req: any, res: any) => {
         yandex_id: u.yandex_id || null,
         discord_id: u.discord_id || null,
         facebook_id: u.facebook_id || null,
+        auth_provider: u.auth_provider || provider,
         created_at: u.created_at || new Date().toISOString(),
         provider,
         provider_label
@@ -5210,8 +5223,8 @@ app.post("/api/auth/telegram/widget", async (req, res) => {
 
       try {
         const [insertRes]: any = await dbQuery(
-          "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
-          [name, email, hashedPassword, role, photoUrl || null, tgUserId]
+          "INSERT INTO users (name, email, password, role, avatar_url, telegram_id, auth_provider) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [name, email, hashedPassword, role, photoUrl || null, tgUserId, "telegram_widget"]
         );
 
         user = {
@@ -5220,10 +5233,24 @@ app.post("/api/auth/telegram/widget", async (req, res) => {
           email,
           role,
           avatar_url: photoUrl || null,
-          telegram_id: tgUserId
+          telegram_id: tgUserId,
+          auth_provider: "telegram_widget"
         };
       } catch (insertErr: any) {
-        if (insertErr.code === "ER_DUP_ENTRY") {
+        if (insertErr.code === "ER_BAD_FIELD_ERROR") {
+          const [insertRes]: any = await dbQuery(
+            "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
+            [name, email, hashedPassword, role, photoUrl || null, tgUserId]
+          );
+          user = {
+            id: insertRes.insertId,
+            name,
+            email,
+            role,
+            avatar_url: photoUrl || null,
+            telegram_id: tgUserId
+          };
+        } else if (insertErr.code === "ER_DUP_ENTRY") {
           let [existingUsers]: any = await dbQuery("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [tgUserId, email]);
           user = existingUsers[0];
           if (!user) throw insertErr;
@@ -5233,10 +5260,17 @@ app.post("/api/auth/telegram/widget", async (req, res) => {
       }
     } else {
       // Update avatar and name with fresh Telegram profile details
-      await dbQuery(
-        "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(?, avatar_url), name = COALESCE(NULLIF(?, ''), name) WHERE id = ?",
-        [tgUserId, photoUrl || null, name, user.id]
-      );
+      try {
+        await dbQuery(
+          "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(?, avatar_url), name = COALESCE(NULLIF(?, ''), name), auth_provider = 'telegram_widget' WHERE id = ?",
+          [tgUserId, photoUrl || null, name, user.id]
+        );
+      } catch {
+        await dbQuery(
+          "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(?, avatar_url), name = COALESCE(NULLIF(?, ''), name) WHERE id = ?",
+          [tgUserId, photoUrl || null, name, user.id]
+        );
+      }
       user.telegram_id = tgUserId;
       if (photoUrl) user.avatar_url = photoUrl;
       if (name) user.name = name;

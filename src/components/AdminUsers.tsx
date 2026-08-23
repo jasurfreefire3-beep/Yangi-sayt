@@ -11,7 +11,9 @@ import {
   RefreshCw,
   AlertCircle,
   CheckCircle,
-  Crown
+  Crown,
+  Sparkles,
+  Bot
 } from 'lucide-react';
 
 interface AdminUser {
@@ -25,8 +27,9 @@ interface AdminUser {
   yandex_id?: string;
   discord_id?: string;
   facebook_id?: string;
+  auth_provider?: string;
   created_at: string;
-  provider: 'telegram' | 'yandex' | 'discord' | 'facebook' | 'google' | 'phone' | 'email';
+  provider: 'telegram_widget' | 'telegram_bot' | 'telegram' | 'yandex' | 'discord' | 'facebook' | 'google' | 'phone' | 'email';
   provider_label: string;
 }
 
@@ -38,7 +41,7 @@ export default function AdminUsers({ token }: AdminUsersProps) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'telegram' | 'google' | 'facebook' | 'yandex' | 'discord' | 'phone' | 'email' | 'admin'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'telegram_widget' | 'telegram_bot' | 'telegram' | 'google' | 'facebook' | 'yandex' | 'discord' | 'phone' | 'email' | 'admin'>('all');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchUsers = async () => {
@@ -108,7 +111,8 @@ export default function AdminUsers({ token }: AdminUsersProps) {
 
   // Stats calculation
   const totalCount = users.length;
-  const telegramCount = users.filter(u => u.provider === 'telegram').length;
+  const telegramWidgetCount = users.filter(u => u.provider === 'telegram_widget' || u.auth_provider === 'telegram_widget').length;
+  const telegramBotCount = users.filter(u => u.provider === 'telegram_bot' || u.auth_provider === 'telegram_bot' || (u.provider === 'telegram' && u.auth_provider !== 'telegram_widget')).length;
   const googleCount = users.filter(u => u.provider === 'google').length;
   const yandexCount = users.filter(u => u.provider === 'yandex').length;
   const discordCount = users.filter(u => u.provider === 'discord').length;
@@ -130,11 +134,28 @@ export default function AdminUsers({ token }: AdminUsersProps) {
 
     if (activeFilter === 'all') return true;
     if (activeFilter === 'admin') return u.role === 'admin';
+    if (activeFilter === 'telegram_widget') return u.provider === 'telegram_widget' || u.auth_provider === 'telegram_widget';
+    if (activeFilter === 'telegram_bot') return u.provider === 'telegram_bot' || u.auth_provider === 'telegram_bot';
+    if (activeFilter === 'telegram') return u.provider === 'telegram_widget' || u.provider === 'telegram_bot' || u.provider === 'telegram';
     return u.provider === activeFilter;
   });
 
   const getProviderBadge = (provider: string) => {
     switch (provider) {
+      case 'telegram_widget':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[#0088cc]/20 text-[#0088cc] border border-[#0088cc]/40 shadow-sm shadow-[#0088cc]/10">
+            <Sparkles size={12} className="shrink-0 text-amber-400" />
+            TG Widget
+          </span>
+        );
+      case 'telegram_bot':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[#0088cc]/15 text-[#38bdf8] border border-[#0088cc]/30">
+            <Bot size={12} className="shrink-0" />
+            TG Bot
+          </span>
+        );
       case 'telegram':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[#0088cc]/15 text-[#0088cc] border border-[#0088cc]/30">
@@ -197,7 +218,7 @@ export default function AdminUsers({ token }: AdminUsersProps) {
           </div>
           <h2 className="text-xl font-black text-white">Barcha Ro'yxatdan O'tgan Foydalanuvchilar</h2>
           <p className="text-xs text-white/50 mt-1">
-            Telegram, Discord, Google, Yandex va Email orqali kirgan barcha foydalanuvchilar statistikasi va ro'yxati.
+            Telegram Widget, Telegram Bot, Google, Discord, Facebook, Yandex va Email orqali kirgan barcha foydalanuvchilar statistikasi va ro'yxati.
           </p>
         </div>
 
@@ -224,22 +245,29 @@ export default function AdminUsers({ token }: AdminUsersProps) {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-3">
         <div className="bg-[#111] border border-[#222] p-4 rounded-sm">
           <div className="text-xs text-white/50 font-medium">Jami A'zolar</div>
           <div className="text-xl font-black text-white mt-1">{totalCount}</div>
         </div>
 
-        <div className="bg-[#111] border border-[#0088cc]/30 p-4 rounded-sm">
+        <div className="bg-[#111] border border-[#0088cc]/50 p-4 rounded-sm shadow-sm shadow-[#0088cc]/10">
           <div className="text-xs text-[#0088cc] font-medium flex items-center gap-1">
-            <Send size={12} /> Telegram
+            <Sparkles size={12} className="text-amber-400" /> TG Widget
           </div>
-          <div className="text-xl font-black text-white mt-1">{telegramCount}</div>
+          <div className="text-xl font-black text-[#0088cc] mt-1">{telegramWidgetCount}</div>
+        </div>
+
+        <div className="bg-[#111] border border-[#0088cc]/30 p-4 rounded-sm">
+          <div className="text-xs text-[#38bdf8] font-medium flex items-center gap-1">
+            <Bot size={12} /> TG Bot
+          </div>
+          <div className="text-xl font-black text-white mt-1">{telegramBotCount}</div>
         </div>
 
         <div className="bg-[#111] border border-red-500/30 p-4 rounded-sm">
           <div className="text-xs text-red-400 font-medium flex items-center gap-1">
-            <Mail size={12} /> Google Email
+            <Mail size={12} /> Google
           </div>
           <div className="text-xl font-black text-white mt-1">{googleCount}</div>
         </div>
@@ -253,7 +281,7 @@ export default function AdminUsers({ token }: AdminUsersProps) {
 
         <div className="bg-[#111] border border-[#FC3F1D]/30 p-4 rounded-sm">
           <div className="text-xs text-[#FC3F1D] font-medium flex items-center gap-1">
-            <span className="font-bold">Я</span> Yandex ID
+            <span className="font-bold">Я</span> Yandex
           </div>
           <div className="text-xl font-black text-white mt-1">{yandexCount}</div>
         </div>
@@ -267,7 +295,7 @@ export default function AdminUsers({ token }: AdminUsersProps) {
 
         <div className="bg-[#111] border border-purple-500/30 p-4 rounded-sm">
           <div className="text-xs text-purple-400 font-medium flex items-center gap-1">
-            <Phone size={12} /> Telefon / SMS
+            <Phone size={12} /> Telefon/Email
           </div>
           <div className="text-xl font-black text-white mt-1">{phoneCount + emailCount}</div>
         </div>
@@ -306,12 +334,22 @@ export default function AdminUsers({ token }: AdminUsersProps) {
               Barchasi ({totalCount})
             </button>
             <button
-              onClick={() => setActiveFilter('telegram')}
-              className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors cursor-pointer ${
-                activeFilter === 'telegram' ? 'bg-[#0088cc] text-white' : 'bg-[#222] text-white/60 hover:text-white'
+              onClick={() => setActiveFilter('telegram_widget')}
+              className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                activeFilter === 'telegram_widget' ? 'bg-[#0088cc] text-white' : 'bg-[#222] text-white/60 hover:text-white'
               }`}
             >
-              Telegram ({telegramCount})
+              <Sparkles size={11} className="text-amber-300" />
+              TG Widget ({telegramWidgetCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('telegram_bot')}
+              className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                activeFilter === 'telegram_bot' ? 'bg-[#0284c7] text-white' : 'bg-[#222] text-white/60 hover:text-white'
+              }`}
+            >
+              <Bot size={11} />
+              TG Bot ({telegramBotCount})
             </button>
             <button
               onClick={() => setActiveFilter('google')}

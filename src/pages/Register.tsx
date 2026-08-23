@@ -120,10 +120,12 @@ export default function Register() {
       const data = await res.json();
 
       if (data.url) {
+        const screenW = window.screen.availWidth || window.innerWidth || 1024;
+        const screenH = window.screen.availHeight || window.innerHeight || 768;
         const authWindow = window.open(
           data.url,
           'yandex_oauth_popup',
-          'width=600,height=700,top=100,left=100'
+          `width=${screenW},height=${screenH},top=0,left=0,toolbar=no,menubar=no,location=no,status=no,resizable=yes,scrollbars=yes`
         );
 
         if (!authWindow) {
@@ -144,7 +146,13 @@ export default function Register() {
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || 'Discord avtorizatsiya havolasi olinmadi');
 
-      const authWindow = window.open(data.url, 'discord_oauth_popup', 'width=600,height=700,top=100,left=100');
+      const screenW = window.screen.availWidth || window.innerWidth || 1024;
+      const screenH = window.screen.availHeight || window.innerHeight || 768;
+      const authWindow = window.open(
+        data.url,
+        'discord_oauth_popup',
+        `width=${screenW},height=${screenH},top=0,left=0,toolbar=no,menubar=no,location=no,status=no,resizable=yes,scrollbars=yes`
+      );
       if (!authWindow) window.location.href = data.url;
     } catch (err: any) {
       setError(err.message || 'Discord orqali kirishda xatolik');
